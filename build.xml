@@ -1,0 +1,140 @@
+<project name="typestatechecker" default="dist" basedir=".">
+    <description>Builds the Typestate Checker. </description>
+
+    <property name="src" value="src"/>
+    <property name="test" value="tests/src"/>
+    <property name="dist" value="dist"/>
+    <property name="build" value="build"/>
+    <property name="build.tests" value="tests/build"/>
+    <property file="build.properties"/>
+    <property name="dist.file" value="typestate-checker.jar"/>
+    <property name="dist.src.file" value="typestate-checker-src.zip"/>
+    <property name="javari.jdk.src" value="jdk/javari/src"/>
+    <property name="javari.jdk.build" value="jdk/javari/build"/>
+    <property name="javaparser.loc" value="../javaparser"/>
+    <property name="checkers.rel.jp" value="../checkers"/>
+
+    <property name="compiler.version.goal" value="javac 1.7.0-jsr308-0.8.5"/>
+    <property name="run.tests.should.fork" value="true"/>
+
+    <path id="build.path">
+        <pathelement location="${compiler.lib}"/>
+        <pathelement location="lib"/>
+    </path>
+
+    <target name="prep" description="Create required directories">
+        <mkdir dir="${build}"/>
+        <mkdir dir="${build.tests}"/>
+        <mkdir dir="${build.tests}/testclasses"/>
+        <mkdir dir="${dist}"/>
+
+        <java fork="true"
+              outputproperty="compiler.version"
+              classpath="${compiler.lib}"
+              classname="com.sun.tools.javac.Main">
+            <arg line="-version"/>
+        </java>
+
+        <condition property="compiler.exists">
+            <equals arg1="${compiler.version}"
+                    arg2="${compiler.version.goal}"/>
+        </condition>
+    </target>
+
+    <target name="clean" description="Remove generated files">
+        <delete dir="${build}"/>
+        <delete dir="${dist}"/>
+        <delete failonerror="false">
+            <fileset dir="${build.tests}" includes="**/*.class"/>
+        </delete>
+    </target>
+
+    <target name="check-compiler">
+        <fail unless="compiler.exists" message="
+Needed version ${compiler.version.goal} of the JSR 308 compiler,
+but found version ${compiler.version} on your classpath.
+${line.separator}${line.separator}
+Check that the 'compiler.lib' property in 'build.properties' points to version
+${compiler.version.goal} of the 'javac.jar' library."/>
+    </target>
+
+    <target name="build" depends="prep,check-compiler" description="Compile files">
+        <pathconvert pathsep=" " property="src.files">
+            <path>
+                <fileset dir="${src}">
+                    <include name="**/*.java"/>
+                </fileset>
+            </path>
+        </pathconvert>
+        <copy todir="${build}">
+            <fileset dir="${src}" includes="**/*.properties"/>
+            <fileset dir="${src}" includes="**/*.astub"/>
+        </copy>
+        <java fork="true"
+              failonerror="true"
+              classpath="${compiler.lib}:${checkers.lib}"
+              classname="com.sun.tools.javac.Main">
+            <jvmarg line="-Xbootclasspath/p:${compiler.lib}"/>
+            <arg value="-g"/>
+            <arg line="-sourcepath ${src}"/>
+            <arg line="-d ${build}"/>
+            <arg line="${src.files}"/>
+            <arg line="-version"/>
+        </java>
+        <!--<unjar src="${javaparser.lib}" dest="${build}" />   -->
+    </target>
+
+    <target name="dist" depends="build" description="Create jar file">
+        <jar destfile="${dist}/${dist.file}" basedir="${build}"/>
+    </target>
+
+    <target name="dist-src">
+        <delete file="${dist}/${dist.src.file}" />
+        <zip destfile="${dist}/${dist.src.file}">
+            <zipfileset dir="." prefix="typestate-checker">
+                <include name="build.xml" />
+                <include name="build.properties" />
+                <include name="${src}/**/*" />
+                <include name="tests/**/*" />
+                <exclude name="tests/build/**/*" />
+            </zipfileset>
+        </zip>
+    </target>
+
+    <target name="build-test" depends="prep,check-compiler" description="Compile tests">
+        <pathconvert pathsep=" " property="src.tests">
+            <path>
+                <fileset dir="${test}">
+                    <include name="**/*.java"/>
+                </fileset>
+            </path>
+        </pathconvert>
+        <java fork="true"
+              failonerror="true"
+              classpath="${compiler.lib}:${junit.lib}:${checkers.test.lib}:${build}"
+              classname="com.sun.tools.javac.Main">
+            <jvmarg line="-Xbootclasspath/p:${compiler.lib}"/>
+            <arg value="-g"/>
+            <arg line="-sourcepath ${test}"/>
+            <arg line="-d ${build.tests}"/>
+            <arg line="${src.tests}"/>
+        </java>
+    </target>
+
+    <target name="-run-tests" description="Generalized test runner">
+        <java fork="${run.tests.should.fork}"
+              failonerror="true"
+              classpath="${compiler.lib}:${dist}/${dist.file}:${build.tests}:${junit.lib}:${checkers.lib}:${checkers.test.lib}"
+              classname="org.junit.runner.JUnitCore">
+            <jvmarg line="-Xbootclasspath/p:${compiler.lib}"/>
+            <jvmarg line="-ea"/>
+            <arg line="${param}"/>
+        </java>
+    </target>
+
+    <target name="test" depends="build, build-test" description="Run tests for the Checker Framework">
+        <antcall target="-run-tests">
+            <param name="param" value="checkers.typestate.test.TypestateTest"/>
+        </antcall>
+    </target>
+</project>
