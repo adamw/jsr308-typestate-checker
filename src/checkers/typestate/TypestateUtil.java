@@ -87,6 +87,10 @@ public class TypestateUtil {
         return null;
     }
 
+	/**
+	 * @param annotations Set of annotations to filter.
+	 * @return A set of annotation mirrors containing all state annotations from the given set.
+	 */
 	public Set<AnnotationMirror> filterStateAnnotations(Set<AnnotationMirror> annotations) {
 		Set<AnnotationMirror> filtered = AnnotationUtils.createAnnotationSet();
 
