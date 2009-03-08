@@ -8,6 +8,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.element.*;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * @author Adam Warski (adam at warski dot org)
@@ -85,4 +86,16 @@ public class TypestateUtil {
 
         return null;
     }
+
+	public Set<AnnotationMirror> filterStateAnnotations(Set<AnnotationMirror> annotations) {
+		Set<AnnotationMirror> filtered = AnnotationUtils.createAnnotationSet();
+
+		for (AnnotationMirror annotation : annotations) {
+			if (isStateAnnotation(annotation) || isAnyStateAnnotation(annotation)) {
+				filtered.add(annotation);
+			}
+		}
+
+		return filtered;
+	}
 }

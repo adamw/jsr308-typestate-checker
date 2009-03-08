@@ -133,7 +133,7 @@ public class TypestateFlow extends MainFlow {
         Set<AnnotationMirror> receiverAnnotations = invocationType.getReceiverType().getAnnotations();
 
         if (node.getMethodSelect().getKind() == Tree.Kind.MEMBER_SELECT) {
-            checkStateAnnotationsOnTree(receiverAnnotations,
+            checkStateAnnotationsOnTree(typestateUtil.filterStateAnnotations(receiverAnnotations),
                     ((MemberSelectTree) node.getMethodSelect()).getExpression(),
                     node, "receiver.in.wrong.state");
         }
@@ -142,8 +142,9 @@ public class TypestateFlow extends MainFlow {
         Iterator<AnnotatedTypeMirror> parametersAnnotationsIter = invocationType.getParameterTypes().iterator();
         Iterator<? extends ExpressionTree> argumentsIter = node.getArguments().iterator();
         while (parametersAnnotationsIter.hasNext()) {
-            checkStateAnnotationsOnTree(parametersAnnotationsIter.next().getAnnotations(), argumentsIter.next(),
-                    node, "parameter.in.wrong.state");
+            checkStateAnnotationsOnTree(
+					typestateUtil.filterStateAnnotations(parametersAnnotationsIter.next().getAnnotations()),
+					argumentsIter.next(), node, "parameter.in.wrong.state");
         }
 
         return super.visitMethodInvocation(node, p);

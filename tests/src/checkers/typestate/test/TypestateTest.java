@@ -76,4 +76,10 @@ public class TypestateTest extends CheckerTest {
     public void testAnyInParameterState() {
         test();
     }
+
+    /** Test checking if other annotations on parameters (in this case: @NonNull) don't interfere with typestate checking */
+    @Test
+    public void testNonNullOnParameterWithoutState() {
+        test();
+    }
 }
