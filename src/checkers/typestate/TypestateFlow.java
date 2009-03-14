@@ -10,9 +10,12 @@ import checkers.source.SourceChecker;
 import com.sun.source.tree.*;
 
 import javax.lang.model.element.*;
+import javax.lang.model.type.DeclaredType;
 import java.util.Set;
 import java.util.Map;
 import java.util.Iterator;
+import java.util.List;
+import java.util.HashMap;
 
 /**
  * @author Adam Warski (adam at warski dot org)
@@ -38,16 +41,51 @@ public class TypestateFlow extends MainFlow {
         }
     }
 
+	private AnnotationMirror translateToErrorAnnotation(final AnnotationMirror annotation) {
+		if (typestateUtil.isAnyStateAnnotation(annotation)) {
+			// Creating the same any-state annotation, with the "except" element set, and other elements removed.
+			AnnotationUtils.AnnotationBuilder builder = new AnnotationUtils.AnnotationBuilder(env,
+					new AnnotationMirror() {
+						@Override
+						public DeclaredType getAnnotationType() {
+							return annotation.getAnnotationType();
+						}
+
+						@Override
+						public Map<? extends ExecutableElement, ? extends AnnotationValue> getElementValues() {
+							Map<? extends ExecutableElement, ? extends AnnotationValue> originalValues =
+									annotation.getElementValues();
+							Map<? extends ExecutableElement, ? extends AnnotationValue> modifiedValues =
+									new HashMap<ExecutableElement, AnnotationValue>(originalValues);
+
+							// Only keeping the "except" element, if at all it's present.
+							Iterator<? extends ExecutableElement> elementsIterator = modifiedValues.keySet().iterator();
+					        while (elementsIterator.hasNext()) {
+								if (!elementsIterator.next().getSimpleName().contentEquals(TypestateUtil.EXCEPT_ELEMENT_NAME)) {
+									elementsIterator.remove();
+								}
+							}
+
+							return modifiedValues;
+						}
+					});
+
+			return builder.build();
+		}
+
+		return annotationsTranslation.get(annotation);
+	}
+
     private Object getErrorAnnotationSetRepresentation(Set<AnnotationMirror> annotations, boolean translate) {
         if (annotations.size() == 0) {
             return "none";
         } else if (annotations.size() == 1) {
-            return translate ? annotationsTranslation.get(annotations.iterator().next()) : annotations.iterator().next();
+            return translate ? translateToErrorAnnotation(annotations.iterator().next()) : annotations.iterator().next();
         } else {
             if (translate) {
                 Set<AnnotationMirror> translated = AnnotationUtils.createAnnotationSet();
                 for (AnnotationMirror annotation : annotations) {
-                    translated.add(annotationsTranslation.get(annotation));
+                    translated.add(translateToErrorAnnotation(annotation));
                 }
 
                 return translated;
@@ -66,7 +104,7 @@ public class TypestateFlow extends MainFlow {
             // Generating the "actual" annotations of the element.
             Set<AnnotationMirror> actualAnnotations = AnnotationUtils.createAnnotationSet();
 
-            // If the element is a variable, getting all annotations currently inferred by the flow. 
+            // If the element is a variable, getting all annotations currently inferred by the flow.
             @SuppressWarnings({"SuspiciousMethodCalls"}) int elementIdx = vars.indexOf(annotatedElement);
             if (elementIdx >= 0) {
                 for (AnnotationMirror stateAnnotation : annotations) {

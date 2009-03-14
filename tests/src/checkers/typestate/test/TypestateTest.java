@@ -82,4 +82,10 @@ public class TypestateTest extends CheckerTest {
     public void testNonNullOnParameterWithoutState() {
         test();
     }
+
+    /** Test checking with the any-state annotation with the except element specified */
+    @Test
+    public void testAnyWithExceptInParameterState() {
+        test();
+    }
 }
