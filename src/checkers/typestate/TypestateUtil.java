@@ -15,6 +15,7 @@ import java.util.Set;
  */
 public class TypestateUtil {
     public static final String TRANSITION_ELEMENT_NAME = "after";
+    public static final String EXCEPT_ELEMENT_NAME = "except";
 
     private final TypeMirror stateAnnotationType;
     private final TypeMirror anyStateAnnotationType;
@@ -22,12 +23,17 @@ public class TypestateUtil {
     // Visitor for getting the value of the "after" parameter of state annotations.
     private final AnnotationAsAnnotationValueVisitor afterAnnotationValueVisitor;
 
+	// Visitor for getting the value of the "except" parameter of any state annotations.
+    private final AnnotationsAsAnnotationValueVisitor exceptAnnotationValueVisitor;
+
     public TypestateUtil(ProcessingEnvironment env) {
         stateAnnotationType = env.getElementUtils().getTypeElement(State.class.getName()).asType();
         anyStateAnnotationType = env.getElementUtils().getTypeElement(Any.class.getName()).asType();
 
         afterAnnotationValueVisitor =
                 new AnnotationAsAnnotationValueVisitor(new AnnotationUtils(env), env.getTypeUtils());
+        exceptAnnotationValueVisitor =
+                new AnnotationsAsAnnotationValueVisitor(new AnnotationUtils(env), env.getTypeUtils());
     }
 
     private boolean checkForStateAnnotation(List<? extends AnnotationMirror> annotations) {
@@ -46,6 +52,36 @@ public class TypestateUtil {
      */
     public boolean isAnyStateAnnotation(AnnotationMirror annotation) {
         return anyStateAnnotationType.equals(annotation.getAnnotationType());
+    }
+
+	public boolean anyAnnotationCovers(AnnotationMirror anyAnnotation, Set<AnnotationMirror> actualAnnotations) {
+		// Checking if this is an any state annotation at all
+		if (!isAnyStateAnnotation(anyAnnotation)) {
+			return false;
+		}
+
+		// If yes, getting the value of the "except" element
+		Set<AnnotationMirror> except = getExceptParameterValue(anyAnnotation);
+
+		// And checking if any of the "except" states are in the actual annotations
+		if (except != null) {
+			for (AnnotationMirror exceptAnnotation : except) {
+				if (actualAnnotations.contains(exceptAnnotation)) {
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
+
+	/**
+     * @param anyStateAnnotation Any-state annotation from which to read the "except" parameter.
+     * @return The set of annotations representing the value of the "except" parameter of the given annotation or null,
+     * if the parameter is not specified.
+     */
+    private Set<AnnotationMirror> getExceptParameterValue(AnnotationMirror anyStateAnnotation) {
+        return getElementValueWithVisitor(anyStateAnnotation, EXCEPT_ELEMENT_NAME, exceptAnnotationValueVisitor);
     }
 
     /**
@@ -74,18 +110,35 @@ public class TypestateUtil {
      * if the parameter is not specified or is not a (state) annotation.
      */
     public AnnotationMirror getAfterParameterValue(AnnotationMirror stateAnnotation) {
-        for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> elementValue :
-                stateAnnotation.getElementValues().entrySet()) {
-            if (elementValue.getKey().getSimpleName().contentEquals(TRANSITION_ELEMENT_NAME)) {
-                AnnotationMirror afterAnnotation = elementValue.getValue().accept(afterAnnotationValueVisitor, null);
-                if (afterAnnotation != null && isStateAnnotation(afterAnnotation)) {
-                    return afterAnnotation;
-                }
+		AnnotationMirror afterAnnotation = getElementValueWithVisitor(stateAnnotation,
+				TRANSITION_ELEMENT_NAME, afterAnnotationValueVisitor);
+
+		if (afterAnnotation != null && isStateAnnotation(afterAnnotation)) {
+        	return afterAnnotation;
+        }
+
+		return null;
+    }
+
+	/**
+	 * Applies the given visitor to the given element of the given annotation.
+	 * @param annotation Annotation, from which to get the elements.
+	 * @param elementName Name of the element, for which the visitor should be applied.
+	 * @param visitor Visitor to use.
+	 * @param <R> Return value of the visitor.
+	 * @return The value returned by the visitor or null, if the element was not found in the annotation.
+	 */
+	private <R> R getElementValueWithVisitor(AnnotationMirror annotation, String elementName,
+										   AnnotationValueVisitor<R, Void> visitor) {
+		for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> elementValue :
+                annotation.getElementValues().entrySet()) {
+            if (elementValue.getKey().getSimpleName().contentEquals(elementName)) {
+                return elementValue.getValue().accept(visitor, null);
             }
         }
 
         return null;
-    }
+	}
 
 	/**
 	 * @param annotations Set of annotations to filter.

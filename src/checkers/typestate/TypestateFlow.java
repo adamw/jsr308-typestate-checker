@@ -67,7 +67,7 @@ public class TypestateFlow extends MainFlow {
             Set<AnnotationMirror> actualAnnotations = AnnotationUtils.createAnnotationSet();
 
             // If the element is a variable, getting all annotations currently inferred by the flow. 
-            int elementIdx = vars.indexOf(annotatedElement);
+            @SuppressWarnings({"SuspiciousMethodCalls"}) int elementIdx = vars.indexOf(annotatedElement);
             if (elementIdx >= 0) {
                 for (AnnotationMirror stateAnnotation : annotations) {
                     if (annos.get(stateAnnotation, elementIdx)) {
@@ -90,10 +90,11 @@ public class TypestateFlow extends MainFlow {
             // checked element is in this state. If so, doing possible transitions.
             for (AnnotationMirror declaredAnnotation : declaredAnnotations) {
                 // Checking if the declared annotation is a state annotation, which is also present on the element
-                // checked, or if it is the any-state annotation.
+                // checked, or if it is the any-state annotation, and the actual annotations aren't in the
+				// "except" parameter of the annotation.
                 // "contains" here is ok as we use the special annotation set (annotation parameter values are ignored).
                 if ((annotations.contains(declaredAnnotation) && actualAnnotations.contains(declaredAnnotation))
-                        || typestateUtil.isAnyStateAnnotation(declaredAnnotation)) {
+                        || typestateUtil.anyAnnotationCovers(declaredAnnotation, actualAnnotations)) {
                     stateMatchFound = true;
 
                     AnnotationMirror afterAnnotation = typestateUtil.getAfterParameterValue(declaredAnnotation);
