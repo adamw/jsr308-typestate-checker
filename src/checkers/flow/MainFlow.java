@@ -31,7 +31,7 @@ import javax.lang.model.util.Elements;
  * @author Adam Warski (adam at warski dot org)
  * @author The authors of the {@link Flow} class.
  */
-public abstract class MainFlow extends TreePathScanner<Void, Void> {
+public class MainFlow extends TreePathScanner<Void, Void> {
 
     /** Where to print debugging messages; set via {@link #setDebug}. */
     private PrintStream debug = null;
@@ -45,7 +45,13 @@ public abstract class MainFlow extends TreePathScanner<Void, Void> {
     /** The file that's being analyzed. */
     protected final CompilationUnitTree root;
 
-    /** The annotations (qualifiers) to infer. */
+    /**
+     * The annotations (qualifiers) to infer. The relationship among them is
+     * determined using {@link BaseTypeChecker#getQualifierHierarchy()}. By
+     * consulting the hierarchy, the analysis will only infer a qualifier on a
+     * type if it is more restrictive (i.e. a subtype) than the existing
+     * qualifier for that type.
+     */
     protected final Set<AnnotationMirror> annotations;
 
     /** Utility class for getting source positions. */
@@ -109,15 +115,15 @@ public abstract class MainFlow extends TreePathScanner<Void, Void> {
     /** Visitor state; tracking is required for checking receiver types. */
     private final VisitorState visitorState;
 
-    /** Utilities for {@link javax.lang.model.element.Element}s. */
+    /** Utilities for {@link Element}s. */
     protected final Elements elements;
 
-    /** Memoization for {@link #varDefHasAnnotation(javax.lang.model.element.AnnotationMirror, javax.lang.model.element.Element)}. */
+    /** Memoization for {@link #varDefHasAnnotation(AnnotationMirror, Element)}. */
     private Map<Element, Boolean> annotatedVarDefs = new HashMap<Element, Boolean>();
 
     /**
      * Creates a new analysis. The analysis will use the given {@link
-     * checkers.types.AnnotatedTypeFactory} to obtain annotated types.
+     * AnnotatedTypeFactory} to obtain annotated types.
      *
      * @param checker the current checker
      * @param root the compilation unit that will be scanned
@@ -140,7 +146,7 @@ public abstract class MainFlow extends TreePathScanner<Void, Void> {
 
         this.atypes = new AnnotatedTypes(env, factory);
 
-        this.visitorState = this.factory.getVisitorState();
+        this.visitorState = factory.getVisitorState();
 
         this.vars = new ArrayList<VariableElement>();
 
@@ -154,7 +160,7 @@ public abstract class MainFlow extends TreePathScanner<Void, Void> {
     }
 
     /**
-     * Sets the {@link java.io.PrintStream} for printing debug messages, such as
+     * Sets the {@link PrintStream} for printing debug messages, such as
      * {@link System#out} or {@link System#err}, or null if no debugging output
      * should be emitted.
      */
@@ -230,8 +236,8 @@ public abstract class MainFlow extends TreePathScanner<Void, Void> {
      *
      * <p>
      *
-     * If only type information (and not a {@link com.sun.source.tree.Tree}) is available, use
-     * {@link #propagateFromType(com.sun.source.tree.Tree, checkers.types.AnnotatedTypeMirror)} instead.
+     * If only type information (and not a {@link Tree}) is available, use
+     * {@link #propagateFromType(Tree, AnnotatedTypeMirror)} instead.
      *
      * @param lhs the left-hand side of the assignment
      * @param rhs the right-hand side of the assignment
@@ -248,6 +254,7 @@ public abstract class MainFlow extends TreePathScanner<Void, Void> {
         // Get the element for the left-hand side.
         Element elt = InternalUtils.symbol(lhs);
         assert elt != null;
+        AnnotatedTypeMirror eltType = factory.getAnnotatedType(elt);
 
         // Get the annotated type of the right-hand side.
         AnnotatedTypeMirror type = factory.getAnnotatedType(rhs);
@@ -267,7 +274,9 @@ public abstract class MainFlow extends TreePathScanner<Void, Void> {
         for (AnnotationMirror annotation : annotations) {
             // Propagate/clear the annotation if it's annotated or an annotation
             // had been inferred previously.
-            if (hasAnnotation(type, annotation) || (rIdx >= 0 && annos.get(annotation, rIdx)))
+            if (hasAnnotation(type, annotation))
+                annos.set(annotation, idx);
+            else if (rIdx >= 0 && annos.get(annotation, rIdx))
                 annos.set(annotation, idx);
             else annos.clear(annotation, idx);
         }
@@ -278,7 +287,7 @@ public abstract class MainFlow extends TreePathScanner<Void, Void> {
      *
      * <p>
      *
-     * {@link #propagate(com.sun.source.tree.Tree, com.sun.source.tree.ExpressionTree)} is preferred, since it is able to use
+     * {@link #propagate(Tree, Tree)} is preferred, since it is able to use
      * extra information about the right-hand side (such as its element). This
      * method should only be used when a type (and nothing else) is available,
      * such as when checking the variable in an enhanced for loop against the
@@ -419,49 +428,7 @@ public abstract class MainFlow extends TreePathScanner<Void, Void> {
     }
 
     @Override
-    public Void visitInstanceOf(InstanceOfTree tree, Void p) {
-        super.visitInstanceOf(tree, p);
-
-        ExpressionTree expr = tree.getExpression();
-
-        Element elt = null;
-        if (expr instanceof IdentifierTree)
-            elt = TreeUtils.elementFromUse((IdentifierTree) expr);
-        else if (expr instanceof MemberSelectTree)
-            elt = TreeUtils.elementFromUse((MemberSelectTree) expr);
-
-        if (elt != null && vars.contains(elt)) {
-            int idx = vars.indexOf(elt);
-            for (AnnotationMirror annotation : annotations)
-                if (hasAnnotation(factory.getAnnotatedTypeFromTypeTree(tree.getType()), annotation))
-                    annos.set(annotation, idx);
-        }
-
-        return null;
-    }
-
-    @Override
-    public Void visitTypeCast(TypeCastTree node, Void p) {
-        super.visitTypeCast(node, p);
-        if (!factory.fromTypeTree(node.getType()).getAnnotations().isEmpty())
-            return null;
-        return null;
-    }
-
-    @Override
     public Void visitAnnotation(AnnotationTree tree, Void p) {
-        return null;
-    }
-
-    @Override
-    public Void visitIdentifier(IdentifierTree node, Void p) {
-        super.visitIdentifier(node, p);
-        return null;
-    }
-
-    @Override
-    public Void visitMemberSelect(MemberSelectTree node, Void p) {
-        super.visitMemberSelect(node, p);
         return null;
     }
 
@@ -472,8 +439,7 @@ public abstract class MainFlow extends TreePathScanner<Void, Void> {
         if (init != null) {
             scanExpr(init);
             VariableElement elem = TreeUtils.elementFromDeclaration(node);
-            AnnotatedTypeMirror type = factory.fromMember(node);
-            if (!isNonFinalField(elem) && type.getAnnotations().isEmpty()) {
+            if (!isNonFinalField(elem) /*&& type.getAnnotations().isEmpty()*/) {
                 propagate(node, init);
             }
         }
@@ -488,6 +454,8 @@ public abstract class MainFlow extends TreePathScanner<Void, Void> {
             scanExpr(var);
         scanExpr(expr);
         propagate(var, expr);
+        if (var instanceof IdentifierTree)
+            this.scan(var, p);
         return null;
     }
 
@@ -522,7 +490,10 @@ public abstract class MainFlow extends TreePathScanner<Void, Void> {
     @Override
     public Void visitAssert(AssertTree node, Void p) {
         scanCond(node.getCondition());
-        annos = GenKillBits.copy(annosWhenTrue);
+        GenKillBits<AnnotationMirror> annosAfterAssert = GenKillBits.copy(annosWhenTrue);
+        annos = GenKillBits.copy(annosWhenFalse);
+        scanExpr(node.getDetail());
+        annos = annosAfterAssert;
         return null;
     }
 
@@ -589,6 +560,46 @@ public abstract class MainFlow extends TreePathScanner<Void, Void> {
             annoCond = annosWhenFalse;
             annos = annosWhenTrue;
             scanStat(node.getStatement());
+            if (pass) break;
+            annosWhenTrue.and(annoEntry);
+            pass = true;
+        } while (true);
+        annos = annoCond;
+        return null;
+    }
+
+    @Override
+    public Void visitDoWhileLoop(DoWhileLoopTree node, Void p) {
+        boolean pass = false;
+        GenKillBits<AnnotationMirror> annoCond;
+        do {
+            GenKillBits<AnnotationMirror> annoEntry = GenKillBits.copy(annos);
+            scanStat(node.getStatement());
+            scanCond(node.getCondition());
+            annoCond = annosWhenFalse;
+            annos = annosWhenTrue;
+            if (pass) break;
+            annosWhenTrue.and(annoEntry);
+            pass = true;
+        } while (true);
+        annos = annoCond;
+        return null;
+    }
+
+    @Override
+    public Void visitForLoop(ForLoopTree node, Void p) {
+        boolean pass = false;
+        for (StatementTree initalizer : node.getInitializer())
+            scanStat(initalizer);
+        GenKillBits<AnnotationMirror> annoCond;
+        do {
+            GenKillBits<AnnotationMirror> annoEntry = GenKillBits.copy(annos);
+            scanCond(node.getCondition());
+            annoCond = annosWhenFalse;
+            annos = annosWhenTrue;
+            scanStat(node.getStatement());
+            for (StatementTree tree : node.getUpdate())
+                scanStat(tree);
             if (pass) break;
             annosWhenTrue.and(annoEntry);
             pass = true;
