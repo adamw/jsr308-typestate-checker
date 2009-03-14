@@ -5,6 +5,7 @@ import com.sun.source.util.Trees;
 import com.sun.source.tree.*;
 
 import java.util.Set;
+import java.util.List;
 
 import checkers.util.AnnotationUtils;
 import checkers.types.AnnotatedTypeMirror;
@@ -47,16 +48,31 @@ public class StateAnnotationsDetector extends TreePathScanner<Void, Set<Annotati
 
     private void addStateAnnotations(Set<AnnotationMirror> from, Set<AnnotationMirror> to) {
         for (AnnotationMirror annotation : from) {
-            if (typestateUtil.isStateAnnotation(annotation)) {
-                addStateAnnotation(annotation, false, to);
+			boolean isStateAnnotation = typestateUtil.isStateAnnotation(annotation);
 
+            if (isStateAnnotation) {
+                addStateAnnotation(annotation, false, to);
+            }
+
+			if (typestateUtil.isAnyStateAnnotation(annotation) || isStateAnnotation) {
                 // Also checking if the annotation doesn't define a transition to another state. If so, adding
                 // that state also.
                 AnnotationMirror afterAnnotation = typestateUtil.getAfterParameterValue(annotation);
-                if (afterAnnotation != null) {
+                if (afterAnnotation != null && typestateUtil.isStateAnnotation(afterAnnotation)) {
                     addStateAnnotation(afterAnnotation, true, to);
                 }
-            }
+
+				// And, in case of an any-state annotation, if the "except" element is set and if it contains
+				// state annotations.
+				List<AnnotationMirror> exceptAnnotations = typestateUtil.getExceptParameterValue(annotation);
+				if (exceptAnnotations != null) {
+					for (AnnotationMirror exceptAnnotation : exceptAnnotations) {
+					    if (typestateUtil.isStateAnnotation(exceptAnnotation)) {
+							addStateAnnotation(exceptAnnotation, true, to);
+						}
+					}
+				}
+			}
         }
     }
 

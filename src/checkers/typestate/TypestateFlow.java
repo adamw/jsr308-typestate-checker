@@ -14,7 +14,6 @@ import javax.lang.model.type.DeclaredType;
 import java.util.Set;
 import java.util.Map;
 import java.util.Iterator;
-import java.util.List;
 import java.util.HashMap;
 
 /**

@@ -83,9 +83,15 @@ public class TypestateTest extends CheckerTest {
         test();
     }
 
-    /** Test checking with the any-state annotation with the except element specified */
+    /** Test checking with the any-state annotation with the except element specified on parameters */
     @Test
     public void testAnyWithExceptInParameterState() {
+        test();
+    }
+
+    /** Test checking with the any-state annotation with the except element specified on method receivers */
+    @Test
+    public void testAnyWithExceptInMethodReceiverState() {
         test();
     }
 }

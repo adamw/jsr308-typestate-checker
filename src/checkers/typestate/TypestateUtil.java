@@ -80,7 +80,7 @@ public class TypestateUtil {
      * @return The set of annotations representing the value of the "except" parameter of the given annotation or null,
      * if the parameter is not specified.
      */
-    private List<AnnotationMirror> getExceptParameterValue(AnnotationMirror anyStateAnnotation) {
+	public List<AnnotationMirror> getExceptParameterValue(AnnotationMirror anyStateAnnotation) {
         return getElementValueWithVisitor(anyStateAnnotation, EXCEPT_ELEMENT_NAME, exceptAnnotationValueVisitor);
     }
 
