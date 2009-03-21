@@ -72,6 +72,8 @@ public class TypestateFlow extends MainFlow {
 			return builder.build();
 		}
 
+		// The annotation surely is a state annotation
+		assert annotationsTranslation.containsKey(annotation);
 		return annotationsTranslation.get(annotation);
 	}
 

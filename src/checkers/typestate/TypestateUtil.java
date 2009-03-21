@@ -1,6 +1,7 @@
 package checkers.typestate;
 
 import checkers.util.AnnotationUtils;
+import checkers.nullness.quals.Nullable;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.type.TypeMirror;
@@ -80,7 +81,7 @@ public class TypestateUtil {
      * @return The set of annotations representing the value of the "except" parameter of the given annotation or null,
      * if the parameter is not specified.
      */
-	public List<AnnotationMirror> getExceptParameterValue(AnnotationMirror anyStateAnnotation) {
+	public @Nullable List<AnnotationMirror> getExceptParameterValue(AnnotationMirror anyStateAnnotation) {
         return getElementValueWithVisitor(anyStateAnnotation, EXCEPT_ELEMENT_NAME, exceptAnnotationValueVisitor);
     }
 
@@ -109,7 +110,7 @@ public class TypestateUtil {
      * @return The state annotation representing the value of the "after" parameter of the given annotation or null,
      * if the parameter is not specified or is not a (state) annotation.
      */
-    public AnnotationMirror getAfterParameterValue(AnnotationMirror stateAnnotation) {
+    public @Nullable AnnotationMirror getAfterParameterValue(AnnotationMirror stateAnnotation) {
 		AnnotationMirror afterAnnotation = getElementValueWithVisitor(stateAnnotation,
 				TRANSITION_ELEMENT_NAME, afterAnnotationValueVisitor);
 
@@ -128,7 +129,7 @@ public class TypestateUtil {
 	 * @param <R> Return value of the visitor.
 	 * @return The value returned by the visitor or null, if the element was not found in the annotation.
 	 */
-	private <R> R getElementValueWithVisitor(AnnotationMirror annotation, String elementName,
+	private </*@Nullable*/ R> R getElementValueWithVisitor(AnnotationMirror annotation, String elementName,
 										   AnnotationValueVisitor<R, Void> visitor) {
 		for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> elementValue :
                 annotation.getElementValues().entrySet()) {

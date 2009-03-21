@@ -137,4 +137,37 @@ ${compiler.version.goal} of the 'javac.jar' library."/>
             <param name="param" value="checkers.typestate.test.TypestateTest"/>
         </antcall>
     </target>
+
+    <!-- Type checking the typestate checker -->
+    <target name="-run-checker" depends="dist" description="Run a checker">
+        <pathconvert pathsep=" " property="files.to.check">
+            <path>
+                <fileset dir="${src}">
+                    <include name="**/*.java" />
+                    <exclude name="**/*MainFlow*" />
+                </fileset>
+            </path>
+        </pathconvert>
+
+        <java fork="true"
+              failonerror="true"
+              classpath="${compiler.lib}:${checkers.lib}:${dist.file}"
+              classname="com.sun.tools.javac.Main">
+            <jvmarg line="-Xbootclasspath/p:${compiler.lib}"/>
+            <arg value="-g"/>
+            <arg line="-sourcepath ${src}:${checker-jdk}"/>
+            <arg line="-d ${build}"/>
+            <arg line="${files.to.check}"/>
+            <arg line="-version"/>
+            <arg line="-proc:only"/>
+            <arg line="-processor ${checker-name}"/>
+        </java>
+    </target>
+
+    <target name="check-nullness" description="Run the nullness checker">
+        <antcall target="-run-checker">
+            <param name="checker-name" value="checkers.nullness.NullnessChecker"/>
+            <param name="checker-jdk" value="jdk/nullness/src"/>
+        </antcall>
+    </target>
 </project>
