@@ -643,10 +643,10 @@ public class MainFlow extends TreePathScanner<Void, Void> {
     GenKillBits<AnnotationMirror> result = tryBits.pop();
     annos.and(result);
     if (node.getCatches() != null) {
-        boolean catchAlive = true;
+        boolean catchAlive = false;
         for (CatchTree ct : node.getCatches()) {
             scan(ct, p);
-            catchAlive &= alive;
+            catchAlive |= alive;
         }
         // Conservative: only if there's no finally
         if (!catchAlive && node.getFinallyBlock() == null)
