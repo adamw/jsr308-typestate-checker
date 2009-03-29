@@ -55,11 +55,16 @@ public class StateAnnotationsDetector extends TreePathScanner<Void, Set<Annotati
             }
 
 			if (typestateUtil.isAnyStateAnnotation(annotation) || isStateAnnotation) {
-                // Also checking if the annotation doesn't define a transition to another state. If so, adding
-                // that state also.
+                // Checking if the annotation doesn't define a transition to another state. If so, adding that state.
                 AnnotationMirror afterAnnotation = typestateUtil.getAfterParameterValue(annotation);
-                if (afterAnnotation != null && typestateUtil.isStateAnnotation(afterAnnotation)) {
+                if (afterAnnotation != null) {
                     addStateAnnotation(afterAnnotation, true, to);
+                }
+
+				// Checking if the annotation doesn't define an exception-state. If so, adding that state.
+                AnnotationMirror exceptionAnnotation = typestateUtil.getExceptionParameterValue(annotation);
+                if (exceptionAnnotation != null) {
+                    addStateAnnotation(exceptionAnnotation, true, to);
                 }
 
 				// And, in case of an any-state annotation, if the "except" element is set and if it contains

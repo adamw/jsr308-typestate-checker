@@ -17,6 +17,7 @@ import java.util.Set;
 public class TypestateUtil {
     public static final String TRANSITION_ELEMENT_NAME = "after";
     public static final String EXCEPT_ELEMENT_NAME = "except";
+    public static final String EXCEPTION_ELEMENT_NAME = "onException";
 
     private final TypeMirror stateAnnotationType;
     private final TypeMirror anyStateAnnotationType;
@@ -107,8 +108,8 @@ public class TypestateUtil {
 
     /**
      * @param stateAnnotation State annotation from which to read the "after" parameter.
-     * @return The state annotation representing the value of the "after" parameter of the given annotation or null,
-     * if the parameter is not specified or is not a (state) annotation.
+     * @return The state annotation representing the value of the "after" element of the given annotation or null,
+     * if the element is not specified or is not a (state) annotation.
      */
     public @Nullable AnnotationMirror getAfterParameterValue(AnnotationMirror stateAnnotation) {
 		AnnotationMirror afterAnnotation = getElementValueWithVisitor(stateAnnotation,
@@ -116,6 +117,22 @@ public class TypestateUtil {
 
 		if (afterAnnotation != null && isStateAnnotation(afterAnnotation)) {
         	return afterAnnotation;
+        }
+
+		return null;
+    }
+
+	/**
+     * @param stateAnnotation State annotation from which to read the "onException" parameter.
+     * @return The state annotation representing the value of the "after" element of the given annotation or null,
+     * if the element is not specified or is not a (state) annotation.
+     */
+    public @Nullable AnnotationMirror getExceptionParameterValue(AnnotationMirror stateAnnotation) {
+		AnnotationMirror exceptionAnnotation = getElementValueWithVisitor(stateAnnotation,
+				EXCEPTION_ELEMENT_NAME, afterAnnotationValueVisitor);
+
+		if (exceptionAnnotation != null && isStateAnnotation(exceptionAnnotation)) {
+        	return exceptionAnnotation;
         }
 
 		return null;
