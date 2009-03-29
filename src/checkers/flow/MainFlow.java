@@ -32,10 +32,6 @@ import javax.lang.model.util.Elements;
  * @author The authors of the {@link Flow} class.
  */
 public class MainFlow extends TreePathScanner<Void, Void> {
-
-    /** Where to print debugging messages; set via {@link #setDebug}. */
-    private PrintStream debug = null;
-
     /** The checker to which this instance belongs. */
     protected final SourceChecker checker;
 
@@ -110,7 +106,7 @@ public class MainFlow extends TreePathScanner<Void, Void> {
     private boolean alive = true;
 
     /** Tracks annotations in try blocks to support exceptions. */
-    private final Deque<GenKillBits<AnnotationMirror>> tryBits;
+    protected final Deque<GenKillBits<AnnotationMirror>> tryBits;
 
     /** Visitor state; tracking is required for checking receiver types. */
     private final VisitorState visitorState;
@@ -146,7 +142,7 @@ public class MainFlow extends TreePathScanner<Void, Void> {
 
         this.atypes = new AnnotatedTypes(env, factory);
 
-        this.visitorState = factory.getVisitorState();
+        this.visitorState = this.factory.getVisitorState();
 
         this.vars = new ArrayList<VariableElement>();
 
@@ -157,15 +153,6 @@ public class MainFlow extends TreePathScanner<Void, Void> {
         this.tryBits = new LinkedList<GenKillBits<AnnotationMirror>>();
 
         elements = env.getElementUtils();
-    }
-
-    /**
-     * Sets the {@link PrintStream} for printing debug messages, such as
-     * {@link System#out} or {@link System#err}, or null if no debugging output
-     * should be emitted.
-     */
-    public void setDebug(PrintStream debug) {
-        this.debug = debug;
     }
 
     @Override
@@ -186,8 +173,6 @@ public class MainFlow extends TreePathScanner<Void, Void> {
         assert var != null : "no symbol from tree";
 
         if (vars.contains(var)) {
-            if (debug != null)
-                debug.println("Flow: newVar(" + tree + ") reusing index");
             return;
         }
 
@@ -196,9 +181,6 @@ public class MainFlow extends TreePathScanner<Void, Void> {
 
         AnnotatedTypeMirror type = factory.getAnnotatedType(tree);
         assert type != null : "no type from symbol";
-
-        if (debug != null)
-            debug.println("Flow: newVar(" + tree + ") -- " + type);
 
         // Determine the initial status of the variable by checking its
         // annotated type.
@@ -243,10 +225,6 @@ public class MainFlow extends TreePathScanner<Void, Void> {
      * @param rhs the right-hand side of the assignment
      */
     void propagate(Tree lhs, ExpressionTree rhs) {
-
-        if (debug != null)
-            debug.println("Flow: try propagate from " + rhs);
-
         // Skip assignment to arrays.
         if (lhs.getKind() == Tree.Kind.ARRAY_ACCESS)
             return;
@@ -656,6 +634,15 @@ public class MainFlow extends TreePathScanner<Void, Void> {
     return null;
     }
 
+	protected void updateTryBits(ExecutableElement method) {
+		List<? extends TypeMirror> thrown = method.getThrownTypes();
+        if (!thrown.isEmpty()
+                && TreeUtils.enclosingOfKind(getCurrentPath(), Tree.Kind.TRY) != null) {
+            if (!tryBits.isEmpty())
+                tryBits.peek().and(annos);
+        }
+	}
+
     @Override
     public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
         super.visitMethodInvocation(node, p);
@@ -674,13 +661,7 @@ public class MainFlow extends TreePathScanner<Void, Void> {
                     annos.clear(a, i);
         }
 
-
-        List<? extends TypeMirror> thrown = method.getThrownTypes();
-        if (!thrown.isEmpty()
-                && TreeUtils.enclosingOfKind(getCurrentPath(), Tree.Kind.TRY) != null) {
-            if (!tryBits.isEmpty())
-                tryBits.peek().and(annos);
-        }
+		updateTryBits(method);
 
         return null;
     }
@@ -743,7 +724,7 @@ public class MainFlow extends TreePathScanner<Void, Void> {
      *
      * @return true iff element is a non-final field
      */
-    private static final boolean isNonFinalField(Element element) {
+    private static boolean isNonFinalField(Element element) {
         return (element.getKind().isField()
                 && !ElementUtils.isFinal(element));
     }

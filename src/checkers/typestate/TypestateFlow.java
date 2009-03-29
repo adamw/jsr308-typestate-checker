@@ -1,6 +1,7 @@
 package checkers.typestate;
 
 import checkers.flow.MainFlow;
+import checkers.flow.GenKillBits;
 import checkers.types.AnnotatedTypeMirror;
 import checkers.types.AnnotatedTypeFactory;
 import checkers.util.InternalUtils;
@@ -96,6 +97,19 @@ public class TypestateFlow extends MainFlow {
         }
     }
 
+	private void clearStateAnnotation(AnnotationMirror declaredAnnotation, int elementIdx,
+									  GenKillBits<AnnotationMirror> annos) {
+		AnnotationMirror receiverAnnTranslation = annotationsTranslation.get(declaredAnnotation);
+
+		// If the "after" annotation is a state annotation, changing the state of the
+		// element in the flow.
+		if (annotations.contains(receiverAnnTranslation)) {
+			// The annotation didn't have to be set, if the transition is caused by the any-state
+			// annotation.
+			annos.clear(receiverAnnTranslation, elementIdx);
+		}
+	}
+
     private void checkStateAnnotationsOnTree(Set<AnnotationMirror> declaredAnnotations, Tree annotatedTree,
                                              MethodInvocationTree methodInvocationTree, String errorMessageKey) {
         // Only checking the state if the declaration specifies any state
@@ -139,17 +153,25 @@ public class TypestateFlow extends MainFlow {
                     AnnotationMirror afterAnnotation = typestateUtil.getAfterParameterValue(declaredAnnotation);
                     // Currently the transitions will only work for variables - hence checking the elementIdx.
                     if (elementIdx >= 0 && afterAnnotation != null && annotations.contains(afterAnnotation)) {
-                        AnnotationMirror receiverAnnTranslation = annotationsTranslation.get(declaredAnnotation);
-
                         // If the "after" annotation is a state annotation, changing the state of the
                         // element in the flow.
-                        if (annotations.contains(receiverAnnTranslation)) {
-                            // The annotation didn't have to be set, if the transition is caused by the any-state
-                            // annotation.
-                            annos.clear(receiverAnnTranslation, elementIdx);
-                        }
+                        clearStateAnnotation(declaredAnnotation, elementIdx, annos);
                         annos.set(annotationsTranslation.get(afterAnnotation), elementIdx);
                     }
+
+					// Now checking if we are in a try-catch-finally. If so, looking for an exception annotation. If
+					// it is present, updating the try bits to be in the new state.
+					if (tryBits.size() > 0) {
+						AnnotationMirror exceptionAnnotation = typestateUtil.getExceptionParameterValue(
+								declaredAnnotation);
+
+						if (exceptionAnnotation != null) {
+							clearStateAnnotation(declaredAnnotation, elementIdx, tryBits.peek());
+							tryBits.peek().set(annotationsTranslation.get(exceptionAnnotation), elementIdx);
+						}
+					}
+
+
                 }
             }
 
@@ -189,4 +211,9 @@ public class TypestateFlow extends MainFlow {
 
         return super.visitMethodInvocation(node, p);
     }
+
+	@Override
+	protected void updateTryBits(ExecutableElement method) {
+		// Exception states are handled already. Doing nothing here.
+	}
 }
