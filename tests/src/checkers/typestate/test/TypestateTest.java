@@ -89,9 +89,15 @@ public class TypestateTest extends CheckerTest {
         test();
     }
 
-    /** Test checking with the any-state annotation with the except element specified on method receivers */
+    /** Test checking exception states with try-catch on parameters */
     @Test
-    public void testAnyWithExceptInMethodReceiverState() {
+    public void testParameterExceptionStateSimple() {
+        test();
+    }
+
+    /** Test checking exception states with try-catch on receivers */
+    @Test
+    public void testReceiverExceptionStateSimple() {
         test();
     }
 }

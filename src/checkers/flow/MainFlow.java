@@ -5,7 +5,6 @@ import checkers.types.*;
 import checkers.types.AnnotatedTypeMirror.*;
 import checkers.util.*;
 
-import java.io.PrintStream;
 import java.util.*;
 
 import com.sun.source.tree.*;
@@ -42,12 +41,8 @@ public class MainFlow extends TreePathScanner<Void, Void> {
     protected final CompilationUnitTree root;
 
     /**
-     * The annotations (qualifiers) to infer. The relationship among them is
-     * determined using {@link BaseTypeChecker#getQualifierHierarchy()}. By
-     * consulting the hierarchy, the analysis will only infer a qualifier on a
-     * type if it is more restrictive (i.e. a subtype) than the existing
-     * qualifier for that type.
-     */
+     * The annotations (qualifiers) to infer.
+	 */
     protected final Set<AnnotationMirror> annotations;
 
     /** Utility class for getting source positions. */
@@ -105,8 +100,8 @@ public class MainFlow extends TreePathScanner<Void, Void> {
      */
     private boolean alive = true;
 
-    /** Tracks annotations in try blocks to support exceptions. */
-    protected final Deque<GenKillBits<AnnotationMirror>> tryBits;
+    /** Tracks annotations for catch blocks to support exceptions. */
+    protected final Deque<GenKillBits<AnnotationMirror>> catchBits;
 
     /** Visitor state; tracking is required for checking receiver types. */
     private final VisitorState visitorState;
@@ -117,7 +112,7 @@ public class MainFlow extends TreePathScanner<Void, Void> {
     /** Memoization for {@link #varDefHasAnnotation(AnnotationMirror, Element)}. */
     private Map<Element, Boolean> annotatedVarDefs = new HashMap<Element, Boolean>();
 
-    /**
+	/**
      * Creates a new analysis. The analysis will use the given {@link
      * AnnotatedTypeFactory} to obtain annotated types.
      *
@@ -150,7 +145,7 @@ public class MainFlow extends TreePathScanner<Void, Void> {
         this.annosWhenTrue = null;
         this.annosWhenFalse = null;
 
-        this.tryBits = new LinkedList<GenKillBits<AnnotationMirror>>();
+        this.catchBits = new LinkedList<GenKillBits<AnnotationMirror>>();
 
         elements = env.getElementUtils();
     }
@@ -613,34 +608,92 @@ public class MainFlow extends TreePathScanner<Void, Void> {
         return null;
     }
 
-    @Override
-    public Void visitTry(TryTree node, Void p) {
-    tryBits.push(GenKillBits.copy(annos));
-    scan(node.getBlock(), p);
-    GenKillBits<AnnotationMirror> annoAfterBlock = GenKillBits.copy(annos);
-    GenKillBits<AnnotationMirror> result = tryBits.pop();
-    annos.and(result);
-    if (node.getCatches() != null) {
-        boolean catchAlive = false;
-        for (CatchTree ct : node.getCatches()) {
-            scan(ct, p);
-            catchAlive |= alive;
-        }
-        // Conservative: only if there's no finally
-        if (!catchAlive && node.getFinallyBlock() == null)
-            annos = GenKillBits.copy(annoAfterBlock);
-    }
-    scan(node.getFinallyBlock(), p);
-    return null;
-    }
+	@Override
+	public Void visitTry(TryTree node, Void p) {
+		// The catch bits will be updated on the first potential exception-throwing statement
+		catchBits.push(null);
+		scan(node.getBlock(), p);
 
-	protected void updateTryBits(ExecutableElement method) {
-		List<? extends TypeMirror> thrown = method.getThrownTypes();
-        if (!thrown.isEmpty()
-                && TreeUtils.enclosingOfKind(getCurrentPath(), Tree.Kind.TRY) != null) {
-            if (!tryBits.isEmpty())
-                tryBits.peek().and(annos);
-        }
+		GenKillBits<AnnotationMirror> annosAfterBlock = annos;
+		// This can be null if no exception-throwing statements where found
+		GenKillBits<AnnotationMirror> annosForCatch = catchBits.pop();
+
+		GenKillBits<AnnotationMirror> annosForFinallyDeadCatches = null;
+		if (annosForCatch != null) {
+			annosForFinallyDeadCatches = GenKillBits.copy(annosForCatch);
+		}
+
+		// This set includes executing finally after an alive catch and without an exception (after the block)
+		GenKillBits<AnnotationMirror> annosForFinallyAliveCatches = GenKillBits.copy(annosAfterBlock);
+		if (annosForCatch != null) {
+			annosForFinallyAliveCatches.and(annosForCatch);
+		}
+
+		boolean hasDeadCatches = false;
+		if (node.getCatches() != null && annosForCatch != null) {
+			boolean aliveBefore = alive;
+
+			try {
+				for (CatchTree ct : node.getCatches()) {
+					alive = true;
+					annos = annosForCatch;
+					scan(ct, p);
+					hasDeadCatches |= !alive;
+
+					if (alive) {
+						annosForFinallyAliveCatches.and(annos);
+					} else {
+						annosForFinallyDeadCatches.and(annos);
+					}
+				}
+			} finally {
+				alive = aliveBefore;
+			}
+		}
+		// Evaluating the finally block
+		// First with "annosForCatch", as the exception may pass-through
+		if (annosForCatch != null) {
+			annos = annosForCatch;
+			scan(node.getFinallyBlock(), p);
+		}
+
+		// Then for the dead catches (if any)
+		if (hasDeadCatches && annosForFinallyDeadCatches != null) {
+			annos = annosForFinallyDeadCatches;
+			scan(node.getFinallyBlock(), p);
+		}
+
+		// And then for the alive catches; this is always not-null
+		annos = annosForFinallyAliveCatches;
+		scan(node.getFinallyBlock(), p);
+		// The annotations after scanning finally with alive-catches are then used to scan the rest
+
+		return null;
+	}
+
+	protected void updateCatchBits(GenKillBits<AnnotationMirror> exceptionBits) {
+		int popped = 0;
+
+		// First removing any null bits
+		while (catchBits.size() > 0 && catchBits.peek() == null) {
+			catchBits.pop();
+			popped++;
+		}
+
+		// Updating all catch bits, as the exception can be propagated
+		for (GenKillBits<AnnotationMirror> catchBit : catchBits) {
+			catchBit.and(annos);
+		}
+
+		// And pushing the initial catch bits in place for the null ones
+		while (popped > 0) {
+			catchBits.push(GenKillBits.copy(exceptionBits));
+			popped--;
+		}
+	}
+
+	protected void updateCatchBits() {
+		updateCatchBits(annos);
 	}
 
     @Override
@@ -661,7 +714,7 @@ public class MainFlow extends TreePathScanner<Void, Void> {
                     annos.clear(a, i);
         }
 
-		updateTryBits(method);
+		updateCatchBits();
 
         return null;
     }

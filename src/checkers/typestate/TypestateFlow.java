@@ -161,17 +161,20 @@ public class TypestateFlow extends MainFlow {
 
 					// Now checking if we are in a try-catch-finally. If so, looking for an exception annotation. If
 					// it is present, updating the try bits to be in the new state.
-					if (tryBits.size() > 0) {
+					if (catchBits.size() > 0) {
 						AnnotationMirror exceptionAnnotation = typestateUtil.getExceptionParameterValue(
 								declaredAnnotation);
 
 						if (exceptionAnnotation != null) {
-							clearStateAnnotation(declaredAnnotation, elementIdx, tryBits.peek());
-							tryBits.peek().set(annotationsTranslation.get(exceptionAnnotation), elementIdx);
+							// Preparing an annotations bits set with the exception state set
+							GenKillBits<AnnotationMirror> exceptionBits = GenKillBits.copy(annos);
+							clearStateAnnotation(declaredAnnotation, elementIdx,exceptionBits);
+							exceptionBits.set(annotationsTranslation.get(exceptionAnnotation), elementIdx);
+
+							// And updating the catchBits
+							updateCatchBits(exceptionBits);
 						}
 					}
-
-
                 }
             }
 
@@ -213,7 +216,7 @@ public class TypestateFlow extends MainFlow {
     }
 
 	@Override
-	protected void updateTryBits(ExecutableElement method) {
+	protected void updateCatchBits() {
 		// Exception states are handled already. Doing nothing here.
 	}
 }

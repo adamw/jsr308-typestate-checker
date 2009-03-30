@@ -18,17 +18,20 @@ public class Test1 {
 	public void acceptInState2(@State2 Test2 o) { }
 	public void acceptInErrorState(@ErrorState Test2 o) { }
 
-	public void throwException(@State1(onException = ErrorState.class) Test2 o) { }
+	public void throwException(@State1(after = State2.class, onException = ErrorState.class) Test2 o) { }
 
     public void test() {
 		Test2 o = new Test2();
 		try {
 			acceptInState1(o);
 			throwException(o);
-			acceptInState1(o);
+			acceptInState2(o);
 		} catch(Exception e) {
 			acceptInErrorState(o);
+			//return;
 		}
+
+		acceptInState2(o);
 	}
 
     public static void main(String[] args) { }
