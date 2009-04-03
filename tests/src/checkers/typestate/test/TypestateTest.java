@@ -89,15 +89,21 @@ public class TypestateTest extends CheckerTest {
         test();
     }
 
-    /** Test checking exception states with try-catch-finally on parameters */
+    /** Test checking exception states with try-catch on parameters */
     @Test
     public void testParameterExceptionState() {
         test();
     }
 
-    /** Test checking exception states with try-catch-finally on receivers */
+    /** Test checking exception states with try-catch on receivers */
     @Test
     public void testReceiverExceptionState() {
+        test();
+    }
+
+    /** Test checking exception states with finally blocks on parameters */
+    @Test
+    public void testFinallyExceptionState() {
         test();
     }
 }
