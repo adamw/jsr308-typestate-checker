@@ -4,7 +4,7 @@ import checkers.typestate.NoChange;
 /**
  * @author Adam Warski (adam at warski dot org)
  */
-public class ParameterExceptionStateSimple {
+public class ParameterExceptionState {
     @State public static @interface State1 { Class<?> after() default NoChange.class; Class<?> onException() default NoChange.class; }
     @State public static @interface State2 { Class<?> after() default NoChange.class; Class<?> onException() default NoChange.class; }
     @State public static @interface ErrorState { Class<?> after() default NoChange.class; }
@@ -37,6 +37,7 @@ public class ParameterExceptionStateSimple {
 			acceptHelperInErrorState(h);	// error
 		} catch (Exception e) {
 			acceptHelperInState1(h);		// error
+			acceptHelperInState2(h);		// error
 		}
     }
 }

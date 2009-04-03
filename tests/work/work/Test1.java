@@ -28,9 +28,8 @@ public class Test1 {
 			acceptInState2(o);
 		} catch(Exception e) {
 			acceptInErrorState(o);
-			//return;
+			return;
 		}
-
 		acceptInState2(o);
 	}
 

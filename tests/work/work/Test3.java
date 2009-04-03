@@ -8,33 +8,27 @@ import checkers.typestate.Any;
  * @author Adam Warski (adam at warski dot org)
  */
 public class Test3 {
-	@State public static @interface State1 { public abstract Class<?> after() default NoChange.class; }
-    @State public static @interface State2 { public abstract Class<?> after() default NoChange.class; }
-	@State public static @interface State3 { public abstract Class<?> after() default NoChange.class; }
+	@State public static @interface State1 { Class<?> after() default NoChange.class; Class<?> onException() default NoChange.class; }
+    @State public static @interface State2 { Class<?> after() default NoChange.class; Class<?> onException() default NoChange.class; }
+    @State public static @interface ErrorState { Class<?> after() default NoChange.class; }
 
-    public static class Helper { }
+    public static class Helper {
+		public Helper() /*@State1*/ { }
+	}
 
-	public void transitToState1(@Any(after=State1.class) Helper h) { }
-	public void transitToState2(@Any(after=State2.class) Helper h) { }
-	public void transitToState3(@Any(after=State3.class) Helper h) { }
+    public void acceptHelperInState1(@State1 Helper h) { }
+    public void acceptHelperInState2(@State2 Helper h) { }
+    public void acceptHelperInErrorState(@ErrorState Helper h) { }
+	public void transitHelper(@State1(after = State2.class, onException = ErrorState.class) Helper h) { }
 
-    public void acceptHelperInAnyExceptState3(@Any(except=State3.class) Helper h) { }
-
-    public void testOk1() {
+    public void testError() {
         Helper h = new Helper();
-		transitToState1(h);
-        acceptHelperInAnyExceptState3(h);
-    }
-
-	public void testOk2() {
-        Helper h = new Helper();
-		transitToState2(h);
-        acceptHelperInAnyExceptState3(h);
-    }
-
-    public void testError1() {
-        Helper h = new Helper();
-		transitToState3(h);
-        acceptHelperInAnyExceptState3(h); // error
+        try {
+			acceptHelperInState1(h);
+			transitHelper(h);
+			acceptHelperInErrorState(h);	// error
+		} catch (Exception e) {
+			acceptHelperInState1(h);		// error
+		}
     }
 }

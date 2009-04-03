@@ -12,7 +12,6 @@ import com.sun.source.util.*;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.*;
-import javax.lang.model.type.*;
 import javax.lang.model.util.Elements;
 
 /**
@@ -100,7 +99,14 @@ public class MainFlow extends TreePathScanner<Void, Void> {
      */
     private boolean alive = true;
 
-    /** Tracks annotations for catch blocks to support exceptions. */
+    /**
+	 * Tracks annotations in potential exception-throwing statements in try blocks.
+	 */
+    protected final Deque<GenKillBits<AnnotationMirror>> tryBits;
+
+	/**
+	 * Tracks annotations in potential exception-throwing statements in catch blocks.
+	 */
     protected final Deque<GenKillBits<AnnotationMirror>> catchBits;
 
     /** Visitor state; tracking is required for checking receiver types. */
@@ -145,7 +151,8 @@ public class MainFlow extends TreePathScanner<Void, Void> {
         this.annosWhenTrue = null;
         this.annosWhenFalse = null;
 
-        this.catchBits = new LinkedList<GenKillBits<AnnotationMirror>>();
+        this.tryBits = new LinkedList<GenKillBits<AnnotationMirror>>();
+		this.catchBits = new LinkedList<GenKillBits<AnnotationMirror>>();
 
         elements = env.getElementUtils();
     }
@@ -610,55 +617,72 @@ public class MainFlow extends TreePathScanner<Void, Void> {
 
 	@Override
 	public Void visitTry(TryTree node, Void p) {
-		// The catch bits will be updated on the first potential exception-throwing statement
-		catchBits.push(null);
+		// The try bits will be updated on the first potential exception-throwing statement
+		tryBits.push(null);
 		scan(node.getBlock(), p);
 
 		GenKillBits<AnnotationMirror> annosAfterBlock = annos;
-		// This can be null if no exception-throwing statements where found
-		GenKillBits<AnnotationMirror> annosForCatch = catchBits.pop();
+		// This can be null if no exception-throwing statements where found. This bit-set is a conjunction of
+		// annotation bit-sets for all potentially exception-throwing statements.
+		GenKillBits<AnnotationMirror> annosForCatch = tryBits.pop();
 
+		// Annotations for the finally block, which will be executed after any dead catches. They have to include
+		// the "annosForCatch", as an exception may pass-through all catches in this try. If an exception passes-through
+		// all catches, this is considered the same as a "dead catch", as the code after finally won't be executed.
 		GenKillBits<AnnotationMirror> annosForFinallyDeadCatches = null;
 		if (annosForCatch != null) {
 			annosForFinallyDeadCatches = GenKillBits.copy(annosForCatch);
 		}
 
-		// This set includes executing finally after an alive catch and without an exception (after the block)
+		// The code after the finally block may be executed either when an exception was caught and handled by an
+		// alive catch, or when no excpetion was thrown at all. So the intial annotations for finally in this case
+		// are "annosAfterBlock", and later conjunctions with annotations after alive catches will be added.
 		GenKillBits<AnnotationMirror> annosForFinallyAliveCatches = GenKillBits.copy(annosAfterBlock);
-		if (annosForCatch != null) {
-			annosForFinallyAliveCatches.and(annosForCatch);
-		}
 
-		boolean hasDeadCatches = false;
 		if (node.getCatches() != null && annosForCatch != null) {
 			boolean aliveBefore = alive;
 
 			try {
 				for (CatchTree ct : node.getCatches()) {
+					// The catch bits will be updated on the first potential exception-throwing statement (if any)
+					catchBits.push(null);
+
 					alive = true;
 					annos = annosForCatch;
 					scan(ct, p);
-					hasDeadCatches |= !alive;
 
+					// Updating annotations for finally depending if the catch is alive or not (finally will be executed
+					// after the catch completes, so we have to make a conjunction with "annos")
 					if (alive) {
 						annosForFinallyAliveCatches.and(annos);
 					} else {
-						annosForFinallyDeadCatches.and(annos);
+						if (annosForFinallyDeadCatches != null) {
+							annosForFinallyDeadCatches.and(annos);
+						} else {
+							annosForFinallyDeadCatches = GenKillBits.copy(annos);
+						}
+					}
+
+					GenKillBits<AnnotationMirror> annosForFinallyFromCatch = catchBits.pop();
+					if (annosForFinallyFromCatch != null) {
+						// In such case, the catch may potentially throw an exception. If it does, it's a "dead" catch,
+						// and after executing finally, the exception will be propagated further.
+						if (annosForFinallyDeadCatches != null) {
+							annosForFinallyDeadCatches.and(annosForFinallyFromCatch);
+						} else {
+							annosForFinallyDeadCatches = GenKillBits.copy(annosForFinallyFromCatch);
+						}
 					}
 				}
 			} finally {
 				alive = aliveBefore;
 			}
 		}
+		
 		// Evaluating the finally block
-		// First with "annosForCatch", as the exception may pass-through
-		if (annosForCatch != null) {
-			annos = annosForCatch;
-			scan(node.getFinallyBlock(), p);
-		}
 
-		// Then for the dead catches (if any)
-		if (hasDeadCatches && annosForFinallyDeadCatches != null) {
+		// For the dead catches (if any)
+		if (annosForFinallyDeadCatches != null) {
 			annos = annosForFinallyDeadCatches;
 			scan(node.getFinallyBlock(), p);
 		}
@@ -671,29 +695,38 @@ public class MainFlow extends TreePathScanner<Void, Void> {
 		return null;
 	}
 
-	protected void updateCatchBits(GenKillBits<AnnotationMirror> exceptionBits) {
+	/**
+	 * Updates the current try and catch bits on an exception-throwing statement.
+	 * @param exceptionBits The annotations on the statement, in case an exception is thrown.                   
+	 */
+	protected void updateExceptionBits(GenKillBits<AnnotationMirror> exceptionBits) {
+		updateExceptionBits(tryBits, exceptionBits);
+		updateExceptionBits(catchBits, exceptionBits);
+	}
+
+	private void updateExceptionBits(Deque<GenKillBits<AnnotationMirror>> bitsStack, GenKillBits<AnnotationMirror> exceptionBits) {
 		int popped = 0;
 
 		// First removing any null bits
-		while (catchBits.size() > 0 && catchBits.peek() == null) {
-			catchBits.pop();
+		while (bitsStack.size() > 0 && bitsStack.peek() == null) {
+			bitsStack.pop();
 			popped++;
 		}
 
 		// Updating all catch bits, as the exception can be propagated
-		for (GenKillBits<AnnotationMirror> catchBit : catchBits) {
-			catchBit.and(annos);
+		for (GenKillBits<AnnotationMirror> catchBit : bitsStack) {
+			catchBit.and(exceptionBits);
 		}
 
 		// And pushing the initial catch bits in place for the null ones
 		while (popped > 0) {
-			catchBits.push(GenKillBits.copy(exceptionBits));
+			bitsStack.push(GenKillBits.copy(exceptionBits));
 			popped--;
 		}
 	}
 
-	protected void updateCatchBits() {
-		updateCatchBits(annos);
+	protected void updateExceptionBits() {
+		updateExceptionBits(annos);
 	}
 
     @Override
@@ -714,7 +747,7 @@ public class MainFlow extends TreePathScanner<Void, Void> {
                     annos.clear(a, i);
         }
 
-		updateCatchBits();
+		updateExceptionBits();
 
         return null;
     }

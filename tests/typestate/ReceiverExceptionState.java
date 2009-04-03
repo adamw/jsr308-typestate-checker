@@ -4,7 +4,7 @@ import checkers.typestate.NoChange;
 /**
  * @author Adam Warski (adam at warski dot org)
  */
-public class ReceiverExceptionStateSimple {
+public class ReceiverExceptionState {
     @State public static @interface State1 { public abstract Class<?> after() default NoChange.class; public abstract Class<?> onException() default NoChange.class; }
     @State public static @interface State2 { public abstract Class<?> after() default NoChange.class; public abstract Class<?> onException() default NoChange.class; }
     @State public static @interface ErrorState { public abstract Class<?> after() default NoChange.class; }
@@ -37,6 +37,7 @@ public class ReceiverExceptionStateSimple {
 			h.acceptInErrorState();		// error
 		} catch (Exception e) {
 			h.acceptInState1();			// error
+			h.acceptInState2();			// error
 		}
     }
 }

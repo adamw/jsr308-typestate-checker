@@ -150,6 +150,23 @@ public class TypestateFlow extends MainFlow {
                         || typestateUtil.anyAnnotationCovers(declaredAnnotation, actualAnnotations)) {
                     stateMatchFound = true;
 
+					// First checking if we are in a try-catch-finally. If so, looking for an exception annotation. If
+					// it is present, updating the try bits to be in the new state.
+					if (tryBits.size() > 0) {
+						AnnotationMirror exceptionAnnotation = typestateUtil.getExceptionParameterValue(
+								declaredAnnotation);
+
+						if (exceptionAnnotation != null) {
+							// Preparing an annotations bits set with the exception state set
+							GenKillBits<AnnotationMirror> exceptionBits = GenKillBits.copy(annos);
+							clearStateAnnotation(declaredAnnotation, elementIdx, exceptionBits);
+							exceptionBits.set(annotationsTranslation.get(exceptionAnnotation), elementIdx);
+
+							// And updating the exception bits
+							updateExceptionBits(exceptionBits);
+						}
+					}
+
                     AnnotationMirror afterAnnotation = typestateUtil.getAfterParameterValue(declaredAnnotation);
                     // Currently the transitions will only work for variables - hence checking the elementIdx.
                     if (elementIdx >= 0 && afterAnnotation != null && annotations.contains(afterAnnotation)) {
@@ -158,23 +175,6 @@ public class TypestateFlow extends MainFlow {
                         clearStateAnnotation(declaredAnnotation, elementIdx, annos);
                         annos.set(annotationsTranslation.get(afterAnnotation), elementIdx);
                     }
-
-					// Now checking if we are in a try-catch-finally. If so, looking for an exception annotation. If
-					// it is present, updating the try bits to be in the new state.
-					if (catchBits.size() > 0) {
-						AnnotationMirror exceptionAnnotation = typestateUtil.getExceptionParameterValue(
-								declaredAnnotation);
-
-						if (exceptionAnnotation != null) {
-							// Preparing an annotations bits set with the exception state set
-							GenKillBits<AnnotationMirror> exceptionBits = GenKillBits.copy(annos);
-							clearStateAnnotation(declaredAnnotation, elementIdx,exceptionBits);
-							exceptionBits.set(annotationsTranslation.get(exceptionAnnotation), elementIdx);
-
-							// And updating the catchBits
-							updateCatchBits(exceptionBits);
-						}
-					}
                 }
             }
 
@@ -216,7 +216,7 @@ public class TypestateFlow extends MainFlow {
     }
 
 	@Override
-	protected void updateCatchBits() {
+	protected void updateExceptionBits() {
 		// Exception states are handled already. Doing nothing here.
 	}
 }
