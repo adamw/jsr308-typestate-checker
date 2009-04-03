@@ -6,7 +6,7 @@ export CLASSPATH=/Users/adamw/jsr308/checkers/checkers.jar:/Users/adamw/jsr308/j
 #CHECKER=checkers.javari.JavariChecker
 CHECKER=checkers.typestate.TypestateChecker
 
-SOURCES=tests/work/work/Test1.java
+SOURCES=tests/work/work/Test3.java
 #SOURCES=src/checkers/typestate/Any.java
 #SOURCES=tests/typestate/SimpleReceiverTransitionState.java
 

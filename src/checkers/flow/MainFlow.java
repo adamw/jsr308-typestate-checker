@@ -648,7 +648,7 @@ public class MainFlow extends TreePathScanner<Void, Void> {
 					catchBits.push(null);
 
 					alive = true;
-					annos = annosForCatch;
+					annos = GenKillBits.copy(annosForCatch);
 					scan(ct, p);
 
 					// Updating annotations for finally depending if the catch is alive or not (finally will be executed

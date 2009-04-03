@@ -17,8 +17,9 @@ public class ParameterExceptionState {
     public void acceptHelperInState2(@State2 Helper h) { }
     public void acceptHelperInErrorState(@ErrorState Helper h) { }
 	public void transitHelper(@State1(after = State2.class, onException = ErrorState.class) Helper h) { }
+	public void recover(@ErrorState(after = State2.class) Helper h) { }
 
-    public void testOk() {
+    public void testOk1() {
 		Helper h = new Helper();
         try {
 			acceptHelperInState1(h);
@@ -29,7 +30,37 @@ public class ParameterExceptionState {
 		}
     }
 
-    public void testError() {
+	public void testOk2() {
+		Helper h = new Helper();
+        try {
+			acceptHelperInState1(h);
+			transitHelper(h);
+			acceptHelperInState2(h);
+		} catch (Exception e) {
+			acceptHelperInErrorState(h);
+			return;
+		}
+
+		acceptHelperInState2(h);			// ok - the catch is dead
+    }
+
+	public void testOk3() {
+		Helper h = new Helper();
+        try {
+			acceptHelperInState1(h);
+			transitHelper(h);
+			acceptHelperInState2(h);
+		} catch (RuntimeException e) {
+			recover(h);
+		} catch (Exception e) {
+			acceptHelperInErrorState(h);
+			return;
+		}
+
+		acceptHelperInState2(h);			// ok - one catch is dead, the other one tran
+    }
+
+    public void testError1() {
         Helper h = new Helper();
         try {
 			acceptHelperInState1(h);
@@ -39,5 +70,20 @@ public class ParameterExceptionState {
 			acceptHelperInState1(h);		// error
 			acceptHelperInState2(h);		// error
 		}
+    }
+
+	public void testError2() {
+        Helper h = new Helper();
+        try {
+			acceptHelperInState1(h);
+			transitHelper(h);
+			acceptHelperInState2(h);		// error
+		} catch (Exception e) {
+			acceptHelperInErrorState(h);
+		}
+
+		acceptHelperInState1(h);			// error - the catch is dead, no state defined
+		acceptHelperInState2(h);			// error
+		acceptHelperInErrorState(h);		// error
     }
 }

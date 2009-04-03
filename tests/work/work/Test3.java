@@ -20,15 +20,22 @@ public class Test3 {
     public void acceptHelperInState2(@State2 Helper h) { }
     public void acceptHelperInErrorState(@ErrorState Helper h) { }
 	public void transitHelper(@State1(after = State2.class, onException = ErrorState.class) Helper h) { }
+	public void recover(@ErrorState(after = State2.class) Helper h) { }
 
-    public void testError() {
-        Helper h = new Helper();
+    public void testOk3() {
+		Helper h = new Helper();
         try {
 			acceptHelperInState1(h);
 			transitHelper(h);
-			acceptHelperInErrorState(h);	// error
+			acceptHelperInState2(h);
+		} catch (RuntimeException e) {
+			recover(h);
+			return;
 		} catch (Exception e) {
-			acceptHelperInState1(h);		// error
+			acceptHelperInErrorState(h);
+			return;
 		}
+
+		acceptHelperInState2(h);			// ok - one catch is dead, the other one transits
     }
 }
