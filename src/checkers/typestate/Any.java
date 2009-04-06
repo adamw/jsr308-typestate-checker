@@ -18,6 +18,10 @@ public @interface Any {
     Class<? extends Annotation> after()			default NoChange.class;
 
 	/**
+	 * <b>Please note:</b> support for the except parameter is still not complete. It may yield inappropriate results
+	 * when the object to which this annotation applies is used is in an undefined state, as may be the case for
+	 * example after an {@code if-else} or {@code try-catch-finally} block.
+	 *
 	 * @return States that this annotation does not cover. If the object will be in a state that is listed here,
 	 * the transition specified by this annotation won't take effect, nor will this annotation accept the object.
 	 */

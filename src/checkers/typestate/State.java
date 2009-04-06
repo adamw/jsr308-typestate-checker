@@ -20,6 +20,11 @@ import static java.lang.annotation.ElementType.*;
  * State annotations (that is, annotations annotated with {@code @State}) can be used on method return,
  * method parameters, method receivers and constructor receivers.
  *
+ * An example of a state annotation:
+ * <pre>
+ * @State @interface State1 { Class<?> after() default NoChange.class; Class<?> onException() default NoChange.class; }
+ * </pre>
+ *
  * @author Adam Warski (adam at warski dot org)
  */
 @Retention(RetentionPolicy.RUNTIME)
