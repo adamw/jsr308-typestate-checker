@@ -21,9 +21,11 @@ import static java.lang.annotation.ElementType.*;
  * method parameters, method receivers and constructor receivers.
  *
  * An example of a state annotation:
- * <pre>
- * @State @interface State1 { Class<?> after() default NoChange.class; Class<?> onException() default NoChange.class; }
- * </pre>
+ * <br />
+ * <br />
+ * <tt>
+ * \@State @interface State1 { Class<?> after() default NoChange.class; Class<?> onException() default NoChange.class; }
+ * </tt>
  *
  * @author Adam Warski (adam at warski dot org)
  */

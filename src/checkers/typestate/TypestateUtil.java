@@ -89,7 +89,7 @@ public class TypestateUtil {
     /**
      * @param dt Type to check.
      * @return True iff the given type is a state annotation, that is, is itself annotated with
-     * @{@link State}.
+     * \@{@link State}.
      */
     public boolean isStateAnnotation(DeclaredType dt) {
         Element el = dt.asElement();
@@ -100,7 +100,7 @@ public class TypestateUtil {
     /**
      * @param annotation Annotation to check.
      * @return True iff the given annotation is a state annotation, that is, is itself annotated with
-     * @{@link State}.
+     * \@{@link State}.
      */
     public boolean isStateAnnotation(AnnotationMirror annotation) {
         return isStateAnnotation(annotation.getAnnotationType());

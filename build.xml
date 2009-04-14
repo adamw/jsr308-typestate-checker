@@ -5,6 +5,7 @@
     <property name="test" value="tests/src"/>
     <property name="dist" value="dist"/>
     <property name="build" value="build"/>
+    <property name="doc" value="doc"/>
     <property name="build.tests" value="tests/build"/>
     <property file="build.properties"/>
     <property name="dist.file" value="typestate-checker.jar"/>
@@ -44,6 +45,7 @@
     <target name="clean" description="Remove generated files">
         <delete dir="${build}"/>
         <delete dir="${dist}"/>
+        <delete dir="${doc}"/>
         <delete failonerror="false">
             <fileset dir="${build.tests}" includes="**/*.class"/>
         </delete>
@@ -94,11 +96,18 @@ ${compiler.version.goal} of the 'javac.jar' library."/>
             <zipfileset dir="." prefix="typestate-checker">
                 <include name="build.xml" />
                 <include name="build.properties" />
+                <include name="example.sh" />
                 <include name="${src}/**/*" />
                 <include name="tests/**/*" />
+                <include name="example/**/*" />
                 <exclude name="tests/build/**/*" />
             </zipfileset>
         </zip>
+    </target>
+
+    <target name="doc" description="Create javadocs">
+        <mkdir dir="${doc}"/>
+        <javadoc sourcepath="${src}" destdir="${doc}" classpath="${compiler.lib}:${checkers.lib}:${dist.file}" />
     </target>
 
     <target name="build-test" depends="prep,check-compiler" description="Compile tests">
