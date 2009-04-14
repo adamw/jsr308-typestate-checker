@@ -23,14 +23,12 @@ public class Test1 {
     public void test() {
 		Test2 o = new Test2();
 		try {
-			acceptInState1(o);
-			throwException(o);
-			acceptInState2(o);
-		} catch(Exception e) {
-			acceptInErrorState(o);
-			return;
+			o.read();
+		} finally {
+			o.transit();
 		}
-		acceptInState2(o);
+		
+		acceptInState1(o);
 	}
 
     public static void main(String[] args) { }
@@ -38,4 +36,8 @@ public class Test1 {
 
 class Test2 {
 	public Test2() /*@State1*/ { }
+
+	void read() /*@State1*/ { }
+
+	void transit() /*@Any(after=State2.class)*/ { }
 }

@@ -9,7 +9,7 @@ public class AnyInParameterState {
     @State public static @interface State1 { public abstract Class<?> after() default NoChange.class; }
     @State public static @interface State2 { public abstract Class<?> after() default NoChange.class; }
 
-    public static class Helper { }
+    public static class Helper { public Helper() /*@State1*/ { } }
 
     public void acceptHelperInState1(@State1 Helper h) { }
     public void acceptHelperInState2(@State2 Helper h) { }

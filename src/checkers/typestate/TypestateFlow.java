@@ -152,7 +152,7 @@ public class TypestateFlow extends MainFlow {
 
 					// First checking if we are in a try-catch-finally. If so, looking for an exception annotation. If
 					// it is present, updating the try bits to be in the new state.
-					if (tryBits.size() > 0) {
+					if (tryBits.size() > 0 || catchBits.size() > 0) {
 						AnnotationMirror exceptionAnnotation = typestateUtil.getExceptionParameterValue(
 								declaredAnnotation);
 
@@ -172,7 +172,13 @@ public class TypestateFlow extends MainFlow {
                     if (elementIdx >= 0 && afterAnnotation != null && annotations.contains(afterAnnotation)) {
                         // If the "after" annotation is a state annotation, changing the state of the
                         // element in the flow.
-                        clearStateAnnotation(declaredAnnotation, elementIdx, annos);
+
+						// Clearing any of the old states
+						for (AnnotationMirror actualAnnotation : actualAnnotations) {
+							clearStateAnnotation(actualAnnotation, elementIdx, annos);
+						}
+
+						// Setting the new state
                         annos.set(annotationsTranslation.get(afterAnnotation), elementIdx);
                     }
                 }
