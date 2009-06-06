@@ -29,7 +29,7 @@ public class StateAnnotationsDetector extends TreePathScanner<Void, Set<Annotati
 
     public StateAnnotationsDetector(ProcessingEnvironment env, TypestateUtil typestateUtil,
                                     AnnotatedTypeFactory factory) {
-        this.annotationUtils = new AnnotationUtils(env);
+        this.annotationUtils = AnnotationUtils.getInstance(env);
         this.env = env;
         this.typestateUtil = typestateUtil;
         this.factory = factory;

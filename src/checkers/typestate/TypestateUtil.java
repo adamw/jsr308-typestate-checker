@@ -33,9 +33,9 @@ public class TypestateUtil {
         anyStateAnnotationType = env.getElementUtils().getTypeElement(Any.class.getName()).asType();
 
         afterAnnotationValueVisitor =
-                new AnnotationAsAnnotationValueVisitor(new AnnotationUtils(env), env.getTypeUtils());
+                new AnnotationAsAnnotationValueVisitor(AnnotationUtils.getInstance(env), env.getTypeUtils());
         exceptAnnotationValueVisitor =
-                new AnnotationsAsAnnotationValueVisitor(new AnnotationUtils(env), env.getTypeUtils());
+                new AnnotationsAsAnnotationValueVisitor(AnnotationUtils.getInstance(env), env.getTypeUtils());
     }
 
     private boolean checkForStateAnnotation(List<? extends AnnotationMirror> annotations) {
