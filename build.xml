@@ -15,7 +15,7 @@
     <property name="javaparser.loc" value="../javaparser"/>
     <property name="checkers.rel.jp" value="../checkers"/>
 
-    <property name="compiler.version.goal" value="javac 1.7.0-jsr308-0.9.2"/>
+    <property name="compiler.version.goal" value="javac 1.7.0-jsr308-0.9.9"/>
     <property name="run.tests.should.fork" value="true"/>
 
     <path id="build.path">
