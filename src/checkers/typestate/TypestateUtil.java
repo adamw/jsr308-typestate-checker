@@ -17,24 +17,28 @@ import java.util.Set;
 public class TypestateUtil {
     public static final String TRANSITION_ELEMENT_NAME = "after";
     public static final String EXCEPT_ELEMENT_NAME = "except";
-    public static final String EXCEPTION_ELEMENT_NAME = "onException";
+    public static final String EXCEPTION_ELEMENT_NAME = "onException";	
+    public static final String WHEN_TRUE_ELEMENT_NAME = "whenTrue";
+	public static final String WHEN_FALSE_ELEMENT_NAME = "whenFalse";
 
     private final TypeMirror stateAnnotationType;
     private final TypeMirror anyStateAnnotationType;
+    private final TypeMirror condAnnotationType;
 
-    // Visitor for getting the value of the "after" parameter of state annotations.
-    private final AnnotationAsAnnotationValueVisitor afterAnnotationValueVisitor;
+    // Visitor for getting the value of single-annotation-valued elements of other annotations.
+    private final AnnotationAsAnnotationValueVisitor singleAnnotationValueVisitor;
 
-	// Visitor for getting the value of the "except" parameter of any state annotations.
-    private final AnnotationsAsAnnotationValueVisitor exceptAnnotationValueVisitor;
+	// Visitor for getting the value of multi-annotation-valued elements of other annotations.
+    private final AnnotationsAsAnnotationValueVisitor multiAnnotationValueVisitor;
 
-    public TypestateUtil(ProcessingEnvironment env) {
+	public TypestateUtil(ProcessingEnvironment env) {
         stateAnnotationType = env.getElementUtils().getTypeElement(State.class.getName()).asType();
         anyStateAnnotationType = env.getElementUtils().getTypeElement(Any.class.getName()).asType();
+        condAnnotationType = env.getElementUtils().getTypeElement(Cond.class.getName()).asType();
 
-        afterAnnotationValueVisitor =
+        singleAnnotationValueVisitor =
                 new AnnotationAsAnnotationValueVisitor(AnnotationUtils.getInstance(env), env.getTypeUtils());
-        exceptAnnotationValueVisitor =
+        multiAnnotationValueVisitor =
                 new AnnotationsAsAnnotationValueVisitor(AnnotationUtils.getInstance(env), env.getTypeUtils());
     }
 
@@ -56,6 +60,14 @@ public class TypestateUtil {
         return anyStateAnnotationType.equals(annotation.getAnnotationType());
     }
 
+	/**
+     * @param annotation Annotation to check.
+     * @return True iff the given annotation is the cond state annotation (@{@link Cond})
+     */
+    public boolean isCondAnnotation(AnnotationMirror annotation) {
+        return condAnnotationType.equals(annotation.getAnnotationType());
+    }
+
 	public boolean anyAnnotationCovers(AnnotationMirror anyAnnotation, Set<AnnotationMirror> actualAnnotations) {
 		// Checking if this is an any state annotation at all
 		if (!isAnyStateAnnotation(anyAnnotation)) {
@@ -63,7 +75,7 @@ public class TypestateUtil {
 		}
 
 		// If yes, getting the value of the "except" element
-		List<AnnotationMirror> except = getExceptParameterValue(anyAnnotation);
+		List<AnnotationMirror> except = getExceptElementValue(anyAnnotation);
 
 		// And checking if any of the "except" states are in the actual annotations
 		if (except != null) {
@@ -82,8 +94,8 @@ public class TypestateUtil {
      * @return The set of annotations representing the value of the "except" parameter of the given annotation or null,
      * if the parameter is not specified.
      */
-	public @Nullable List<AnnotationMirror> getExceptParameterValue(AnnotationMirror anyStateAnnotation) {
-        return getElementValueWithVisitor(anyStateAnnotation, EXCEPT_ELEMENT_NAME, exceptAnnotationValueVisitor);
+	public @Nullable List<AnnotationMirror> getExceptElementValue(AnnotationMirror anyStateAnnotation) {
+        return getElementValueWithVisitor(anyStateAnnotation, EXCEPT_ELEMENT_NAME, multiAnnotationValueVisitor);
     }
 
     /**
@@ -107,36 +119,50 @@ public class TypestateUtil {
     }
 
     /**
-     * @param stateAnnotation State annotation from which to read the "after" parameter.
+     * @param stateAnnotation State annotation from which to read the "after" element.
      * @return The state annotation representing the value of the "after" element of the given annotation or null,
      * if the element is not specified or is not a (state) annotation.
      */
-    public @Nullable AnnotationMirror getAfterParameterValue(AnnotationMirror stateAnnotation) {
-		AnnotationMirror afterAnnotation = getElementValueWithVisitor(stateAnnotation,
-				TRANSITION_ELEMENT_NAME, afterAnnotationValueVisitor);
-
-		if (afterAnnotation != null && isStateAnnotation(afterAnnotation)) {
-        	return afterAnnotation;
-        }
-
-		return null;
+    public @Nullable AnnotationMirror getAfterElementValue(AnnotationMirror stateAnnotation) {
+		return getSingleAnnotationElementValue(stateAnnotation, TRANSITION_ELEMENT_NAME);
     }
 
 	/**
-     * @param stateAnnotation State annotation from which to read the "onException" parameter.
+     * @param condAnnotation State annotation from which to read the "whenTrue" element.
+     * @return The state annotation representing the value of the "whenTrue" element of the given annotation or null,
+     * if the element is not specified or is not a (state) annotation.
+     */
+    public @Nullable AnnotationMirror getWhenTrueElementValue(AnnotationMirror condAnnotation) {
+		return getSingleAnnotationElementValue(condAnnotation, WHEN_TRUE_ELEMENT_NAME);
+    }
+
+	/**
+     * @param condAnnotation State annotation from which to read the "whenFalse" element.
+     * @return The state annotation representing the value of the "whenFalse" element of the given annotation or null,
+     * if the element is not specified or is not a (state) annotation.
+     */
+    public @Nullable AnnotationMirror getWhenFalseElementValue(AnnotationMirror condAnnotation) {
+		return getSingleAnnotationElementValue(condAnnotation, WHEN_FALSE_ELEMENT_NAME);
+    }
+
+	/**
+     * @param stateAnnotation State annotation from which to read the "onException" element.
      * @return The state annotation representing the value of the "after" element of the given annotation or null,
      * if the element is not specified or is not a (state) annotation.
      */
-    public @Nullable AnnotationMirror getExceptionParameterValue(AnnotationMirror stateAnnotation) {
-		AnnotationMirror exceptionAnnotation = getElementValueWithVisitor(stateAnnotation,
-				EXCEPTION_ELEMENT_NAME, afterAnnotationValueVisitor);
+    public @Nullable AnnotationMirror getExceptionElementValue(AnnotationMirror stateAnnotation) {
+		return getSingleAnnotationElementValue(stateAnnotation, EXCEPTION_ELEMENT_NAME);
+    }
 
-		if (exceptionAnnotation != null && isStateAnnotation(exceptionAnnotation)) {
-        	return exceptionAnnotation;
+	private @Nullable AnnotationMirror getSingleAnnotationElementValue(AnnotationMirror annotation, String elementName) {
+		AnnotationMirror result = getElementValueWithVisitor(annotation, elementName, singleAnnotationValueVisitor);
+
+		if (result != null && isStateAnnotation(result)) {
+        	return result;
         }
 
 		return null;
-    }
+	}
 
 	/**
 	 * Applies the given visitor to the given element of the given annotation.

@@ -56,20 +56,20 @@ public class StateAnnotationsDetector extends TreePathScanner<Void, Set<Annotati
 
 			if (typestateUtil.isAnyStateAnnotation(annotation) || isStateAnnotation) {
                 // Checking if the annotation doesn't define a transition to another state. If so, adding that state.
-                AnnotationMirror afterAnnotation = typestateUtil.getAfterParameterValue(annotation);
+                AnnotationMirror afterAnnotation = typestateUtil.getAfterElementValue(annotation);
                 if (afterAnnotation != null) {
                     addStateAnnotation(afterAnnotation, true, to);
                 }
 
 				// Checking if the annotation doesn't define an exception-state. If so, adding that state.
-                AnnotationMirror exceptionAnnotation = typestateUtil.getExceptionParameterValue(annotation);
+                AnnotationMirror exceptionAnnotation = typestateUtil.getExceptionElementValue(annotation);
                 if (exceptionAnnotation != null) {
                     addStateAnnotation(exceptionAnnotation, true, to);
                 }
 
 				// And, in case of an any-state annotation, if the "except" element is set and if it contains
 				// state annotations.
-				List<AnnotationMirror> exceptAnnotations = typestateUtil.getExceptParameterValue(annotation);
+				List<AnnotationMirror> exceptAnnotations = typestateUtil.getExceptElementValue(annotation);
 				if (exceptAnnotations != null) {
 					for (AnnotationMirror exceptAnnotation : exceptAnnotations) {
 					    if (typestateUtil.isStateAnnotation(exceptAnnotation)) {
@@ -77,6 +77,14 @@ public class StateAnnotationsDetector extends TreePathScanner<Void, Set<Annotati
 						}
 					}
 				}
+			}
+
+			// In case of a cond annotation, checking both true and false elements.
+			if (typestateUtil.isCondAnnotation(annotation)) {
+                AnnotationMirror afterAnnotation = typestateUtil.getAfterElementValue(annotation);
+                if (afterAnnotation != null) {
+                    addStateAnnotation(afterAnnotation, true, to);
+                }
 			}
         }
     }
