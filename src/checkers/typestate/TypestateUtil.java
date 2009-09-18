@@ -18,12 +18,11 @@ public class TypestateUtil {
     public static final String TRANSITION_ELEMENT_NAME = "after";
     public static final String EXCEPT_ELEMENT_NAME = "except";
     public static final String EXCEPTION_ELEMENT_NAME = "onException";	
-    public static final String WHEN_TRUE_ELEMENT_NAME = "whenTrue";
-	public static final String WHEN_FALSE_ELEMENT_NAME = "whenFalse";
+    public static final String AFTER_TRUE_ELEMENT_NAME = "afterTrue";
+	public static final String AFTER_FALSE_ELEMENT_NAME = "afterFalse";
 
     private final TypeMirror stateAnnotationType;
     private final TypeMirror anyStateAnnotationType;
-    private final TypeMirror condAnnotationType;
 
     // Visitor for getting the value of single-annotation-valued elements of other annotations.
     private final AnnotationAsAnnotationValueVisitor singleAnnotationValueVisitor;
@@ -34,7 +33,6 @@ public class TypestateUtil {
 	public TypestateUtil(ProcessingEnvironment env) {
         stateAnnotationType = env.getElementUtils().getTypeElement(State.class.getName()).asType();
         anyStateAnnotationType = env.getElementUtils().getTypeElement(Any.class.getName()).asType();
-        condAnnotationType = env.getElementUtils().getTypeElement(Cond.class.getName()).asType();
 
         singleAnnotationValueVisitor =
                 new AnnotationAsAnnotationValueVisitor(AnnotationUtils.getInstance(env), env.getTypeUtils());
@@ -58,14 +56,6 @@ public class TypestateUtil {
      */
     public boolean isAnyStateAnnotation(AnnotationMirror annotation) {
         return anyStateAnnotationType.equals(annotation.getAnnotationType());
-    }
-
-	/**
-     * @param annotation Annotation to check.
-     * @return True iff the given annotation is the cond state annotation (@{@link Cond})
-     */
-    public boolean isCondAnnotation(AnnotationMirror annotation) {
-        return condAnnotationType.equals(annotation.getAnnotationType());
     }
 
 	public boolean anyAnnotationCovers(AnnotationMirror anyAnnotation, Set<AnnotationMirror> actualAnnotations) {
@@ -128,21 +118,21 @@ public class TypestateUtil {
     }
 
 	/**
-     * @param condAnnotation State annotation from which to read the "whenTrue" element.
-     * @return The state annotation representing the value of the "whenTrue" element of the given annotation or null,
+     * @param stateAnnotation State annotation from which to read the "afterTrue" element.
+     * @return The state annotation representing the value of the "afterTrue" element of the given annotation or null,
      * if the element is not specified or is not a (state) annotation.
      */
-    public @Nullable AnnotationMirror getWhenTrueElementValue(AnnotationMirror condAnnotation) {
-		return getSingleAnnotationElementValue(condAnnotation, WHEN_TRUE_ELEMENT_NAME);
+    public @Nullable AnnotationMirror getAfterTrueElementValue(AnnotationMirror stateAnnotation) {
+		return getSingleAnnotationElementValue(stateAnnotation, AFTER_TRUE_ELEMENT_NAME);
     }
 
 	/**
-     * @param condAnnotation State annotation from which to read the "whenFalse" element.
-     * @return The state annotation representing the value of the "whenFalse" element of the given annotation or null,
+     * @param stateAnnotation State annotation from which to read the "afterFalse" element.
+     * @return The state annotation representing the value of the "afterFalse" element of the given annotation or null,
      * if the element is not specified or is not a (state) annotation.
      */
-    public @Nullable AnnotationMirror getWhenFalseElementValue(AnnotationMirror condAnnotation) {
-		return getSingleAnnotationElementValue(condAnnotation, WHEN_FALSE_ELEMENT_NAME);
+    public @Nullable AnnotationMirror getAfterFalseElementValue(AnnotationMirror stateAnnotation) {
+		return getSingleAnnotationElementValue(stateAnnotation, AFTER_FALSE_ELEMENT_NAME);
     }
 
 	/**

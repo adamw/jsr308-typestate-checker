@@ -56,10 +56,13 @@ public class StateAnnotationsDetector extends TreePathScanner<Void, Set<Annotati
 
 			if (typestateUtil.isAnyStateAnnotation(annotation) || isStateAnnotation) {
                 // Checking if the annotation doesn't define a transition to another state. If so, adding that state.
+				// Also checking conditional transition states.
                 AnnotationMirror afterAnnotation = typestateUtil.getAfterElementValue(annotation);
-                if (afterAnnotation != null) {
-                    addStateAnnotation(afterAnnotation, true, to);
-                }
+				AnnotationMirror afterTrueAnnotation = typestateUtil.getAfterTrueElementValue(annotation);
+				AnnotationMirror afterFalseAnnotation = typestateUtil.getAfterFalseElementValue(annotation);
+                if (afterAnnotation != null) { addStateAnnotation(afterAnnotation, true, to); }
+				if (afterTrueAnnotation != null) { addStateAnnotation(afterTrueAnnotation, true, to); }
+				if (afterFalseAnnotation != null) { addStateAnnotation(afterFalseAnnotation, true, to); }
 
 				// Checking if the annotation doesn't define an exception-state. If so, adding that state.
                 AnnotationMirror exceptionAnnotation = typestateUtil.getExceptionElementValue(annotation);
@@ -77,14 +80,6 @@ public class StateAnnotationsDetector extends TreePathScanner<Void, Set<Annotati
 						}
 					}
 				}
-			}
-
-			// In case of a cond annotation, checking both true and false elements.
-			if (typestateUtil.isCondAnnotation(annotation)) {
-                AnnotationMirror afterAnnotation = typestateUtil.getAfterElementValue(annotation);
-                if (afterAnnotation != null) {
-                    addStateAnnotation(afterAnnotation, true, to);
-                }
 			}
         }
     }
