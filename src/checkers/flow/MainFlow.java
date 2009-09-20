@@ -25,6 +25,7 @@ import javax.lang.model.util.Elements;
  * - removed the {@code AnnotationMirror test(Tree tree)} method
  * - removed the {@code Map<Location, AnnotationMirror> flowResults} field and all its usages
  * - removed the {@code void recordBits(TreePath path)} method and all its usages
+ * - modified the analysis of try-catch-finally to be more accurate
  *
  * @author Adam Warski (adam at warski dot org)
  * @author The authors of the {@link Flow} class.
