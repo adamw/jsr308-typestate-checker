@@ -26,6 +26,7 @@ import javax.lang.model.util.Elements;
  * - removed the {@code Map<Location, AnnotationMirror> flowResults} field and all its usages
  * - removed the {@code void recordBits(TreePath path)} method and all its usages
  * - modified the analysis of try-catch-finally to be more accurate
+ * - modified {@code alive} to be protected
  *
  * @author Adam Warski (adam at warski dot org)
  * @author The authors of the {@link Flow} class.
@@ -98,7 +99,7 @@ public class MainFlow extends TreePathScanner<Void, Void> {
      * Stores the result of liveness analysis, required by the GEN-KILL analysis
      * for proper handling of jumps (break, return, throw, etc.).
      */
-    private boolean alive = true;
+    protected boolean alive = true;
 
     /**
 	 * Tracks annotations in potential exception-throwing statements in try blocks.

@@ -7,7 +7,7 @@ export DEBUGOPTS="-J-Xms48m -J-Xdebug -J-Xrunjdwp:transport=dt_socket,server=y,s
 #CHECKER=checkers.javari.JavariChecker
 CHECKER=checkers.typestate.TypestateChecker
 
-SOURCES=tests/work/work/Test1.java
+SOURCES=tests/work/work/Test6.java
 #SOURCES=src/checkers/typestate/Any.java
 
 javac $DEBUGOPTS -processor $CHECKER -sourcepath src -cp $CLASSPATH -d build $SOURCES

@@ -106,4 +106,10 @@ public class TypestateTest extends CheckerTest {
     public void testFinallyExceptionState() {
         test();
     }
+
+    /** Test checking results of boolean methods invoked on receiver with afterTrue and afterFalse transitions */
+    @Test
+    public void testBooleanMethodReceiverState() {
+        test();
+    }
 }

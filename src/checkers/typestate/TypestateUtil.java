@@ -15,11 +15,8 @@ import java.util.Set;
  * @author Adam Warski (adam at warski dot org)
  */
 public class TypestateUtil {
-    public static final String TRANSITION_ELEMENT_NAME = "after";
     public static final String EXCEPT_ELEMENT_NAME = "except";
-    public static final String EXCEPTION_ELEMENT_NAME = "onException";	
-    public static final String AFTER_TRUE_ELEMENT_NAME = "afterTrue";
-	public static final String AFTER_FALSE_ELEMENT_NAME = "afterFalse";
+    public static final String EXCEPTION_ELEMENT_NAME = "onException";
 
     private final TypeMirror stateAnnotationType;
     private final TypeMirror anyStateAnnotationType;
@@ -109,30 +106,13 @@ public class TypestateUtil {
     }
 
     /**
-     * @param stateAnnotation State annotation from which to read the "after" element.
-     * @return The state annotation representing the value of the "after" element of the given annotation or null,
+     * @param stateAnnotation State annotation from which to read the transition element.
+	 * @param element The transition element to read.
+     * @return The state annotation representing the value of the transition element of the given annotation or null,
      * if the element is not specified or is not a (state) annotation.
      */
-    public @Nullable AnnotationMirror getAfterElementValue(AnnotationMirror stateAnnotation) {
-		return getSingleAnnotationElementValue(stateAnnotation, TRANSITION_ELEMENT_NAME);
-    }
-
-	/**
-     * @param stateAnnotation State annotation from which to read the "afterTrue" element.
-     * @return The state annotation representing the value of the "afterTrue" element of the given annotation or null,
-     * if the element is not specified or is not a (state) annotation.
-     */
-    public @Nullable AnnotationMirror getAfterTrueElementValue(AnnotationMirror stateAnnotation) {
-		return getSingleAnnotationElementValue(stateAnnotation, AFTER_TRUE_ELEMENT_NAME);
-    }
-
-	/**
-     * @param stateAnnotation State annotation from which to read the "afterFalse" element.
-     * @return The state annotation representing the value of the "afterFalse" element of the given annotation or null,
-     * if the element is not specified or is not a (state) annotation.
-     */
-    public @Nullable AnnotationMirror getAfterFalseElementValue(AnnotationMirror stateAnnotation) {
-		return getSingleAnnotationElementValue(stateAnnotation, AFTER_FALSE_ELEMENT_NAME);
+    public @Nullable AnnotationMirror getTransitionElementValue(AnnotationMirror stateAnnotation, TransitionElement element) {
+		return getSingleAnnotationElementValue(stateAnnotation, element.getElementName());
     }
 
 	/**

@@ -6,9 +6,11 @@ import checkers.types.AnnotatedTypeMirror;
 import checkers.types.AnnotatedTypeFactory;
 import checkers.util.InternalUtils;
 import checkers.util.AnnotationUtils;
+import checkers.util.TreeUtils;
 import checkers.source.Result;
 import checkers.source.SourceChecker;
 import com.sun.source.tree.*;
+import com.sun.source.util.TreeScanner;
 
 import javax.lang.model.element.*;
 import javax.lang.model.type.DeclaredType;
@@ -27,6 +29,9 @@ public class TypestateFlow extends MainFlow {
     private final Map<AnnotationMirror, AnnotationMirror> annotationsTranslation;
 
     private final TypestateUtil typestateUtil;
+
+	// The transition element which should be read.
+	protected TransitionElement transitionElement = TransitionElement.AFTER;
 
     public TypestateFlow(SourceChecker checker, Set<AnnotationMirror> annotations, AnnotatedTypeFactory factory,
                          CompilationUnitTree root, TypestateUtil typestateUtil) {
@@ -167,7 +172,12 @@ public class TypestateFlow extends MainFlow {
 						}
 					}
 
-                    AnnotationMirror afterAnnotation = typestateUtil.getAfterElementValue(declaredAnnotation);
+					// Trying to read the specific transition element
+                    AnnotationMirror afterAnnotation = typestateUtil.getTransitionElementValue(declaredAnnotation, transitionElement);
+					// If no value was found, and the element wasn't the normal one ('after'), trying to read it.
+					if (afterAnnotation == null && transitionElement != TransitionElement.AFTER) {
+						afterAnnotation = typestateUtil.getTransitionElementValue(declaredAnnotation, TransitionElement.AFTER);
+					}
                     // Currently the transitions will only work for variables - hence checking the elementIdx.
                     if (elementIdx >= 0 && afterAnnotation != null && annotations.contains(afterAnnotation)) {
                         // If the "after" annotation is a state annotation, changing the state of the
@@ -224,5 +234,132 @@ public class TypestateFlow extends MainFlow {
 	@Override
 	protected void updateExceptionBits() {
 		// Exception states are handled already. Doing nothing here.
+	}
+
+	@Override
+    protected void scanCond(Tree tree) {
+		// So far only simple or negated comparisions of a method call to a constant are supported.
+		boolean supported = isSupportedLogic(tree);
+
+		if (!supported) {
+			super.scanCond(tree);
+			return;
+		}
+
+		if (tree == null) {
+			return;
+		}
+
+		GenKillBits<AnnotationMirror> before = GenKillBits.copy(annos);
+
+		// Scanning the condition twice: once with the after-true element active, once with the active-false element
+		// active.
+		transitionElement = TransitionElement.AFTER_TRUE;
+		alive = true;
+        scan(tree, null);
+		GenKillBits<AnnotationMirror> afterTrue = annos;
+
+		transitionElement = TransitionElement.AFTER_FALSE;
+		annos = before;
+		alive = true;
+		scan(tree, null);
+		GenKillBits<AnnotationMirror> afterFalse = annos;
+
+		transitionElement = TransitionElement.AFTER;
+
+		// Now splitting the annotation set appropriately
+		if (annos != null) {
+			// In case of a complement, we have to switch the true and false
+			if (inverted(tree)) {
+				annosWhenTrue = afterFalse;
+				annosWhenFalse = afterTrue;
+			} else {
+				annosWhenTrue = afterTrue;
+				annosWhenFalse = afterFalse;
+			}
+			
+			annos = null;
+		}
+    }
+
+	/**
+	 * @param tree Tree to check.
+	 * @return True if the result of the method is checked to be false (not true).
+	 */
+	private static boolean inverted(Tree tree) {
+		tree = TreeUtils.skipParens(tree);
+		final boolean[] inverted = new boolean[1];
+		switch (tree.getKind()) {
+			case METHOD_INVOCATION:
+				return false;
+			case EQUAL_TO:
+				inverted[0] = false;
+				break;
+			case NOT_EQUAL_TO:
+				inverted[0] = true;
+				break;
+			case LOGICAL_COMPLEMENT:
+				return !inverted(((UnaryTree)tree).getExpression());
+			default:
+				throw new RuntimeException("Unsupported tree kind: " + tree.getKind());
+		}
+
+		// Now checking if the constant to which the method invocation is compared is true or false.
+		// In case of false - we have to invert the result.
+		tree.accept(new TreeScanner<Void, Void>() {
+			@Override
+			public Void visitLiteral(LiteralTree node, Void aVoid) {
+				Object value = node.getValue();
+				if (value instanceof Boolean && !((Boolean) value)) {
+					inverted[0] = !inverted[0];
+				}
+				return null;
+			}
+		}, null);
+
+
+		return inverted[0];
+	}
+
+	/**
+     * Copied and adapted from <code>NullnessFlow</code> as it is private there.
+	 *
+	 * @param tree The tree to check.
+	 * @return True if the logical statement in the given tree is supported.
+     */
+	private static boolean isSupportedLogic(Tree tree) {
+		tree = TreeUtils.skipParens(tree);
+		// First checking the kind of the tree
+		switch (tree.getKind()) {
+			case EQUAL_TO:
+			case NOT_EQUAL_TO:
+				break;			
+			case METHOD_INVOCATION:
+				return true;
+			case LOGICAL_COMPLEMENT:
+				return isSupportedLogic(((UnaryTree)tree).getExpression());
+			default:
+				return false;
+		}
+
+		// And now checking that the tree contains a method invocation and a constant
+		final int[] methodInvoked = new int[]{0};
+		final int[] constant = new int[]{0};
+
+		tree.accept(new TreeScanner<Void, Void>() {
+			@Override
+			public Void visitMethodInvocation(MethodInvocationTree node, Void aVoid) {
+				methodInvoked[0]++;
+				return null;
+			}
+
+			@Override
+			public Void visitLiteral(LiteralTree node, Void aVoid) {
+				constant[0]++;
+				return null;
+			}
+		}, null);
+
+		return methodInvoked[0] == 1 && constant[0] == 1;
 	}
 }
