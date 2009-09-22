@@ -24,11 +24,4 @@ public class IteratorStates {
 		Class<? extends Annotation> afterFalse() default NoChange.class;
 		Class<? extends Annotation> onException() default NoChange.class;
 	}
-
-	public static @State @interface NoNext {
-		Class<? extends Annotation> after() default NoChange.class;
-		Class<? extends Annotation> afterTrue() default NoChange.class;
-		Class<? extends Annotation> afterFalse() default NoChange.class;
-		Class<? extends Annotation> onException() default NoChange.class;
-	}
 }
