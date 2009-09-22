@@ -4,7 +4,8 @@ export CLASSPATH=/Users/adamw/jsr308/checkers/checkers.jar:/Users/adamw/jsr308/j
 
 CHECKER=checkers.typestate.TypestateChecker
 
-SOURCES=example/src/checkers/typestate/ioexample/Example2.java
+#SOURCES=example/src/checkers/typestate/ioexample/Example2.java
+SOURCES=example/src/checkers/typestate/iteratorexample/Example3.java
 
 SOURCEPATH=example/jdk/src:example/src
 
