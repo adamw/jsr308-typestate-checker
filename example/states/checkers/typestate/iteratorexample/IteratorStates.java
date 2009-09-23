@@ -6,6 +6,7 @@ import checkers.typestate.NoChange;
 import java.lang.annotation.Annotation;
 
 /**
+ * Possible states of an iterator.
  * @author Adam Warski (adam at warski dot org)
  */
 public class IteratorStates {
