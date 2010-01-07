@@ -20,7 +20,7 @@ public class TypestateAnnotatedTypeFactory extends AnnotatedTypeFactory {
 
     public TypestateAnnotatedTypeFactory(ProcessingEnvironment env, TypestateUtil typestateUtil,
                                          CompilationUnitTree root) {
-        super(env, null, root);
+        super(env, null, root, TypestateChecker.class);
 
         this.typestateTypeFromExpressionEnv = TypestateTypeFromExpression.makeEnv(this, typestateUtil);
     }
